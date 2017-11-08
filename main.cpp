@@ -19,6 +19,9 @@ typedef struct Process {
     int waitTime;
     int cpuTime;
     int remainTime;
+    //MUST ADD A DATATYPE to hold the amount of bursts
+    //and an array of ints that counts how long each cpu/io burst takes.
+    int cpuBursts;
 
 } Process;
 
@@ -110,6 +113,22 @@ int main(int argc, char *argv[]) {
             } else {
                 cout << "Incorrect command line argument " << i << endl;
             }
+        }
+    }
+    int firstProcesses = floor(processors/3);
+    Process *processCollection = new Process[processors];
+    for(int i=0; i<processors; i++){
+        Process tempProcess;
+        tempProcess.PID = 1024 +i;
+        if(i<=firstProcesses){
+            tempProcess.state = "Ready";
+        } else {
+            tempProcess.state = "Not Created";
+        }
+        if(algorithm==3){
+            tempProcess.priority = rand() % 5;
+        } else {
+            tempProcess.priority = 0;
         }
     }
 
