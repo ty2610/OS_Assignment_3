@@ -10,7 +10,7 @@
 
 using namespace std;
 
-void processCommandInput(string *userInputRaw);
+void processCommandInput(int argc, char *argv);
 void initializeProcesses(vector<Process> *processQueue, int *nextPid, int *processesToCreate);
 void* mainThreadProcess(void* obj);
 void* coreProcess(void* obj);
@@ -54,15 +54,12 @@ struct Process {
     int priority;
 };
 
-int main() {
+int main(int argc, char *argv[]) {
     //pid starts at 1024 and increments by 1
     int nextPid = 1024;
 
-    string userInputRaw;
-    getline(cin, userInputRaw);
-
     //Get all user input commands
-    processCommandInput(&userInputRaw);
+    processCommandInput(argc, argv);
 
     //Initialize 1/3 of processes
     vector<Process> processQueue;
@@ -125,41 +122,98 @@ void* mainThreadProcess(void* obj) {
  * -o: Context switching overhead in milliseconds (100-1000)
  * -t: Time slice in milliseconds - only used for round-robin algorithm (200 - 2000)
  */
-void processCommandInput(string *userInputRaw) {
-    string userInput = *userInputRaw;
-    for (int i=0; i<userInput.length(); i++) {
-        if (userInput[i] == '-') {
-            char command = userInput[i + 1];
-            //We know next char will be a space so start at char after the space
-            int commandIndex = i+3;
-            char currChar = userInput[commandIndex];
-            //Store the data after the -x in commandData
-            string commandData;
-            while (currChar != ' ') {
-                commandData += userInput[commandIndex];
-                commandIndex++;
-                currChar = userInput[commandIndex];
-            }
-            //Update i so that we don't recheck chars again
-            i = commandIndex + 1;
-            switch(command) {
-                case 'c' :
-                    commandInput.cpuCores = atoi(commandData);
-                    break;
-                case 'p' :
-                    commandInput.processesToRun = atoi(commandData);
-                    break;
-                case 's' :
-                    commandInput.schedAlgorithm = atoi(commandData);
-                    break;
-                case 'o' :
-                    commandInput.csOverhead = atoi(commandData);
-                    break;
-                case 't' :
-                    commandInput.timeSlice = atoi(commandData);
-                    break;
-                default :
-                    break;
+void processCommandInput(int argc, char *argv) {
+    string argumentIndicators[] = {"-c", "-p", "-s", "-o", "-t"};
+    int amountOfArgumentIndicators = argumentIndicators.length();
+    bool atValidArg = false;
+
+    if (argc > 1) {
+        for (int i=0; i<argc; i++) {
+            if(find(begin(argumentIndicators), end(argumentIndicators), string(argv[i])) != end(argumentIndicators)){
+                if(atValidArg) {
+                    cout << "No argument provided with " << argv[i-1];
+                    return 0;
+                } else {
+                    atValidArg = true;
+                }
+            } else if (atValidArg) {
+                switch (string(argv[i-1])) {
+                    case "-c" :
+                        if(string(argv[i])=="1" || string(argv[i])=="2" || string(argv[i])=="3" || string(argv[i])=="4") {
+                            commandInput.cpuCores = stoi(argv[i]);
+                        } else {
+                            cout << "The given argument for -c must be an integer and 1-4: " << argv[i] << endl;
+                            return 0;
+                        }
+                        atValidArg = false;
+                        break;
+                    case "-p" :
+                        if (isNumber(string(argv[i]))) {
+                            int processorHolder = stoi(string(argv[i]));
+                            if (processorHolder<1 || processorHolder>24) {
+                                cout << "The given number for argument -p must be greater than 0 but smaller than 25: " << argv[i] << endl;
+                                return 0;
+                            } else {
+                                commandInput.processesToRun = processorHolder;
+                            }
+                        } else {
+                            cout << "The given command for argument -p is not an integer: " << argv[i] << endl;
+                            return 0;
+                        }
+                        atValidArg = false;
+                        break;
+                    case "s" :
+                        if(isNumber(string(argv[i]))) {
+                            int algorithmHolder = stoi(string(argv[i]));
+                            if(algorithmHolder<0 || algorithmHolder>3){
+                                cout << "The given number for argument -s must be smaller than 4: " << argv[i] << endl;
+                                return 0;
+                            } else {
+                                commandInput.schedAlgorithm = algorithmHolder;
+                            }
+                        } else {
+                            cout << "The given command for argument -s is not an integer: " << argv[i] << endl;
+                            return 0;
+                        }
+                        atValidArg = false;
+                        break;
+                    case "o" :
+                        if(isNumber(string(argv[i]))) {
+                            int contextSwitchHolder = stoi(string(argv[i]));
+                            if(contextSwitchHolder<100 || contextSwitchHolder>1000){
+                                cout << "The given number for argument -o must be smaller than 1001 and greater than 99: " << argv[i] << endl;
+                                return 0;
+                            } else {
+                                commandInput.csOverhead = contextSwitchHolder;
+                            }
+                        } else {
+                            cout << "The given command for argument -o is not an integer: " << argv[i] << endl;
+                            return 0;
+                        }
+                        atValidArg = false;
+                        break;
+                    case "t" :
+                        //may need if check to see if the given algorithm is round robin
+                        //if it is, then don't do any error checking on the given value
+                        //because we wont be using it anyways
+                        if(isNumber(string(argv[i]))) {
+                            int timeSliceHolder = stoi(string(argv[i]));
+                            if(timeSliceHolder<200 || timeSliceHolder>2000){
+                                cout << "The given number for argument -t must be smaller than 2001 and greater than 199: " << argv[i] << endl;
+                                return 0;
+                            } else {
+                                commandInput.timeSlice = timeSliceHolder;
+                            }
+                        } else {
+                            cout << "The given command for argument -t is not an integer: " << argv[i] << endl;
+                            return 0;
+                        }
+                        atValidArg = false;
+                        break;
+                    default :
+                        cout << "Incorrect command line argument: " << i << endl;
+                        return 0;
+                }
             }
         }
     }
