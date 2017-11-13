@@ -23,7 +23,7 @@ typedef struct Process {
     vector<int> cpuburstTimes;
     int startTime;
     int cpuBursts;
-} Process;
+};
 
 struct CommandInput {
     //1-4
@@ -38,9 +38,25 @@ struct CommandInput {
     int timeSlice;
 }commandInput;
 
+//Only need one
+struct MainThread {
+
+}mainThread;
+
+struct Core {
+    int id;
+    bool idle;
+};
+
 bool isNumber(const string& s);
 void takeCommand(int argc, char *argv[]);
 vector<Process> createProcesses();
+void executeRoundRobin();
+void executeFirstComeFirstServe();
+void executeShortestJobFirst();
+void executePreemptivePriority();
+void* coreProcess(void* obj);
+void* mainThreadProcess(void* obj);
 
 int main(int argc, char *argv[]) {
     commandInput.cores = 0;
@@ -55,6 +71,23 @@ int main(int argc, char *argv[]) {
 
     vector<Process> processCollection = createProcesses();
 
+    //Create main thread
+    pthread_t mainThread;
+    pthread_create(&mainThread, NULL, &mainThreadProcess, (void*)mainThread);
+
+    //Create core threads
+    pthread_t threads[commandInput.cores];
+    Core *core[commandInput.cores];
+    for (int i=0; i<commandInput.cores; i++) {
+        core[i]->id = i;
+        core[i]->idle = true;
+        pthread_create(&threads[i], NULL, &coreProcess, (void*)core[i]);
+    }
+
+    //Join all threads.
+    for (int i=0; i<commandInput.cores; i++) {
+        pthread_join(threads[i], NULL);
+    }
 
     //THE OUTPUT SHOULD BE PUT IN IT'S OWN METHOD
     Process process;
@@ -210,6 +243,8 @@ vector<Process> createProcesses() {
         tempProcess.ioBursts = (rand() % 9) + 2;
         tempProcess.cpuBursts = tempProcess.ioBursts + 1;
         for(int j=0; j<tempProcess.cpuBursts; j++) {
+            //https://stackoverflow.com/questions/25649495/how-to-insert-element-at-beginning-of-vector
+            //used this to learn how to push to the back of a vector (just switched start() with end())
             tempProcess.cpuburstTimes.insert(tempProcess.cpuburstTimes.end(),(rand() % 5001) + 1000);
         }
         for(int j =0; j<tempProcess.ioBursts; j++) {
@@ -218,4 +253,29 @@ vector<Process> createProcesses() {
         processCollection.insert(processCollection.end(),tempProcess);
     }
     return processCollection;
+}
+
+void* mainThreadProcess(void* obj) {
+    MainThread *mainThread = (MainThread*)obj;
+
+    /*
+     * Print CPU stats
+     */
+}
+
+void* coreProcess(void* obj) {
+    Core *core = (Core*)obj;
+}
+
+void executeRoundRobin() {
+
+}
+void executeFirstComeFirstServe(){
+
+}
+void executeShortestJobFirst(){
+
+}
+void executePreemptivePriority() {
+
 }
