@@ -75,9 +75,24 @@ int main(int argc, char *argv[]) {
     pthread_t mainThread;
     pthread_create(&mainThread, NULL, &mainThreadProcess, (void*)mainThread);
 
+    //looked up switch syntax
+    //http://en.cppreference.com/w/cpp/language/switch
+    //Will run the algorithm for the scheduler selected
+    switch(commandInput.algorithm) {
+        case 0: executeRoundRobin;
+            break;
+        case 1: executeFirstComeFirstServe();
+            break;
+        case 2: executeShortestJobFirst();
+            break;
+        case 3: executePreemptivePriority();
+            break;
+    }
+
     //Create core threads
     pthread_t threads[commandInput.cores];
     Core *core[commandInput.cores];
+    void* hi = &coreProcess;
     for (int i=0; i<commandInput.cores; i++) {
         core[i]->id = i;
         core[i]->idle = true;
