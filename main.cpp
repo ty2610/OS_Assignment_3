@@ -46,6 +46,7 @@ struct MainThread {
 struct Core {
     int id;
     bool idle;
+    vector<Process> *processCollection;
 } ;
 
 bool isNumber(const string& s);
@@ -67,8 +68,6 @@ int main(int argc, char *argv[]) {
     takeCommand(argc,argv);
     //checks to see if there are arguments, and error checks
     //Look over, I think this works, but it may be flawed
-
-    vector<Process> processCollection = createProcesses();
 
     //Create main thread
     pthread_t mainThread;
@@ -249,6 +248,7 @@ vector<Process> createProcesses() {
 
 void* mainThreadProcess(void* obj) {
     MainThread *mainThread = (MainThread*)obj;
+    vector<Process> processCollection = createProcesses();
     //Create core threads
     pthread_t threads[commandInput.cores];
     Core *core = new Core[commandInput.cores];
@@ -260,6 +260,7 @@ void* mainThreadProcess(void* obj) {
             for (int i=0; i<commandInput.cores; i++) {
                 core[i].id = i;
                 core[i].idle = true;
+                core[i].processCollection = &processCollection;
                 pthread_create(&threads[i], NULL, &executeRoundRobin, (void*)&core[i]);
             }
             break;
@@ -267,6 +268,7 @@ void* mainThreadProcess(void* obj) {
             for (int i=0; i<commandInput.cores; i++) {
                 core[i].id = i;
                 core[i].idle = true;
+                core[i].processCollection = &processCollection;
                 pthread_create(&threads[i], NULL, &executeFirstComeFirstServe, (void*)&core[i]);
             }
             break;
@@ -274,6 +276,7 @@ void* mainThreadProcess(void* obj) {
             for (int i=0; i<commandInput.cores; i++) {
                 core[i].id = i;
                 core[i].idle = true;
+                core[i].processCollection = &processCollection;
                 pthread_create(&threads[i], NULL, &executeShortestJobFirst, (void*)&core[i]);
             }
             break;
@@ -281,6 +284,7 @@ void* mainThreadProcess(void* obj) {
             for (int i=0; i<commandInput.cores; i++) {
                 core[i].id = i;
                 core[i].idle = true;
+                core[i].processCollection = &processCollection;
                 pthread_create(&threads[i], NULL, &executePreemptivePriority, (void*)&core[i]);
             }
             break;
