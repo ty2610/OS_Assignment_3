@@ -51,11 +51,10 @@ struct Core {
 bool isNumber(const string& s);
 void takeCommand(int argc, char *argv[]);
 vector<Process> createProcesses();
-void executeRoundRobin();
-void executeFirstComeFirstServe();
-void executeShortestJobFirst();
-void executePreemptivePriority();
-void* coreProcess(void* obj);
+void* executeRoundRobin(void* obj);
+void* executeFirstComeFirstServe(void* obj);
+void* executeShortestJobFirst(void* obj);
+void* executePreemptivePriority(void* obj);
 void* mainThreadProcess(void* obj);
 
 int main(int argc, char *argv[]) {
@@ -74,35 +73,6 @@ int main(int argc, char *argv[]) {
     //Create main thread
     pthread_t mainThread;
     pthread_create(&mainThread, NULL, &mainThreadProcess, (void*)mainThread);
-
-    //looked up switch syntax
-    //http://en.cppreference.com/w/cpp/language/switch
-    //Will run the algorithm for the scheduler selected
-    switch(commandInput.algorithm) {
-        case 0: executeRoundRobin;
-            break;
-        case 1: executeFirstComeFirstServe();
-            break;
-        case 2: executeShortestJobFirst();
-            break;
-        case 3: executePreemptivePriority();
-            break;
-    }
-
-    //Create core threads
-    pthread_t threads[commandInput.cores];
-    Core *core[commandInput.cores];
-    void* hi = &coreProcess;
-    for (int i=0; i<commandInput.cores; i++) {
-        core[i]->id = i;
-        core[i]->idle = true;
-        pthread_create(&threads[i], NULL, &coreProcess, (void*)core[i]);
-    }
-
-    //Join all threads.
-    for (int i=0; i<commandInput.cores; i++) {
-        pthread_join(threads[i], NULL);
-    }
 
     //THE OUTPUT SHOULD BE PUT IN IT'S OWN METHOD
     Process process;
@@ -272,25 +242,65 @@ vector<Process> createProcesses() {
 
 void* mainThreadProcess(void* obj) {
     MainThread *mainThread = (MainThread*)obj;
+    //Create core threads
+    pthread_t threads[commandInput.cores];
+    Core *core[commandInput.cores];
+    //looked up switch syntax
+    //http://en.cppreference.com/w/cpp/language/switch
+    //Will run the algorithm for the scheduler selected
+    switch(commandInput.algorithm) {
+        case 0:
+            for (int i=0; i<commandInput.cores; i++) {
+                core[i]->id = i;
+                core[i]->idle = true;
+                pthread_create(&threads[i], NULL, &executeRoundRobin, (void*)core[i]);
+            }
+            break;
+        case 1:
+            for (int i=0; i<commandInput.cores; i++) {
+                core[i]->id = i;
+                core[i]->idle = true;
+                pthread_create(&threads[i], NULL, &executeFirstComeFirstServe, (void*)core[i]);
+            }
+            break;
+        case 2:
+            for (int i=0; i<commandInput.cores; i++) {
+                core[i]->id = i;
+                core[i]->idle = true;
+                pthread_create(&threads[i], NULL, &executeShortestJobFirst, (void*)core[i]);
+            }
+            break;
+        case 3:
+            for (int i=0; i<commandInput.cores; i++) {
+                core[i]->id = i;
+                core[i]->idle = true;
+                pthread_create(&threads[i], NULL, &executePreemptivePriority, (void*)core[i]);
+            }
+            break;
+    }
 
+    //Join all threads.
+    for (int i=0; i<commandInput.cores; i++) {
+        pthread_join(threads[i], NULL);
+    }
     /*
      * Print CPU stats
      */
 }
 
-void* coreProcess(void* obj) {
+void* executeRoundRobin(void* obj) {
     Core *core = (Core*)obj;
-}
-
-void executeRoundRobin() {
 
 }
-void executeFirstComeFirstServe(){
+void* executeFirstComeFirstServe(void* obj){
+    Core *core = (Core*)obj;
 
 }
-void executeShortestJobFirst(){
+void* executeShortestJobFirst(void* obj){
+    Core *core = (Core*)obj;
 
 }
-void executePreemptivePriority() {
+void* executePreemptivePriority(void* obj) {
+    Core *core = (Core*)obj;
 
 }
