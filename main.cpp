@@ -57,6 +57,7 @@ void* executeFirstComeFirstServe(void* obj);
 void* executeShortestJobFirst(void* obj);
 void* executePreemptivePriority(void* obj);
 void* mainThreadProcess(void* obj);
+void* processActivator(void* obj);
 
 int main(int argc, char *argv[]) {
     commandInput.cores = 0;
@@ -252,6 +253,8 @@ void* mainThreadProcess(void* obj) {
     //Create core threads
     pthread_t threads[commandInput.cores];
     Core *core = new Core[commandInput.cores];
+    pthread_t processActivatorThread;
+    pthread_create(&processActivatorThread, NULL, &processActivator, (void*)&processCollection);
     //looked up switch syntax
     //http://en.cppreference.com/w/cpp/language/switch
     //Will run the algorithm for the scheduler selected
@@ -314,4 +317,13 @@ void* executeShortestJobFirst(void* obj){
 void* executePreemptivePriority(void* obj) {
     Core *core = (Core*)obj;
 
+}
+void* processActivator(void* obj){
+    vector<Process> *processCollection = (vector<Process>*)obj;
+    /*
+     * This is where we will have an infinite loop that keeps
+     * checking the time of the simulation to switch processes
+     * to ready when the randomized time has elapsed
+     *
+     */
 }
