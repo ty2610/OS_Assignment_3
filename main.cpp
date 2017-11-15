@@ -9,7 +9,7 @@
 
 using namespace std;
 
-typedef struct Process {
+struct Process {
     int PID;
     int priority;
     string state;
@@ -46,7 +46,7 @@ struct MainThread {
 struct Core {
     int id;
     bool idle;
-};
+} ;
 
 bool isNumber(const string& s);
 void takeCommand(int argc, char *argv[]);
@@ -74,6 +74,7 @@ int main(int argc, char *argv[]) {
     pthread_t mainThread;
     pthread_create(&mainThread, NULL, &mainThreadProcess, (void*)mainThread);
 
+    pthread_join(mainThread, NULL);
     //THE OUTPUT SHOULD BE PUT IN IT'S OWN METHOD
     Process process;
     process.PID = 0;
@@ -102,7 +103,13 @@ bool isNumber(const string& s)
     return !s.empty() && find_if(s.begin(),
                                       s.end(), [](char c) { return !std::isdigit(c); }) == s.end();
 }
-
+/**
+ * -c: Number of CPU cores (1-4)
+ * -p: Number of processes to run (1-24)
+ * -s: Scheduling algorithm (0: round-robin, 1: first come first serve, 2: shortest job first, 3: preemptive priority)
+ * -o: Context switching overhead in milliseconds (100-1000)
+ * -t: Time slice in milliseconds - only used for round-robin algorithm (200 - 2000)
+ */
 void takeCommand(int argc, char *argv[]) {
     string argumentIndicators[] = {"-c","-p","-s","-o","-t"};
     bool atArgument = false;
@@ -111,7 +118,7 @@ void takeCommand(int argc, char *argv[]) {
             if(find(begin(argumentIndicators), end(argumentIndicators), string(argv[i])) != end(argumentIndicators)){
                 if(atArgument == true) {
                     cout << "No argument provided with " << argv[i-1];
-                    exit(3);
+                    exit(0);
                 } else {
                     atArgument = true;
                 }
@@ -121,10 +128,10 @@ void takeCommand(int argc, char *argv[]) {
                         commandInput.cores = stoi(argv[i]);
                     } else if (commandInput.cores != 0) {
                         cout << "You can not specify an argument twice." << endl;
-                        exit(3);
+                        exit(1);
                     } else {
                         cout << "The given argument for -c must be an integer and 1-4. " << argv[i] << endl;
-                        exit(3);
+                        exit(2);
                     }
                 } else if(string(argv[i-1]) == "-p"){
                     if(isNumber(string(argv[i]))) {
@@ -134,76 +141,76 @@ void takeCommand(int argc, char *argv[]) {
                             exit(3);
                         } else if (commandInput.processors != 0) {
                             cout << "You can not specify an argument twice." << endl;
-                            exit(3);
+                            exit(4);
                         } else {
                             commandInput.processors = processorHolder;
                         }
                     } else {
                         cout << "The given command for argument -p is not an integer " << argv[i] << endl;
-                        exit(3);
+                        exit(5);
                     }
                 } else if(string(argv[i-1]) == "-s"){
                     if(isNumber(string(argv[i]))) {
                         int algorithmHolder = stoi(string(argv[i]));
                         if(algorithmHolder<0 || algorithmHolder>3){
                             cout << "The given number for argument -s must be smaller than 4: " << argv[i] << endl;
-                            exit(3);
+                            exit(6);
                         } else if (commandInput.algorithm != -1) {
                             cout << "You can not specify an argument twice." << endl;
-                            exit(3);
+                            exit(7);
                         } else {
                             commandInput.algorithm = algorithmHolder;
                         }
                     } else {
                         cout << "The given command for argument -s is not an integer " << argv[i] << endl;
-                        exit(3);
+                        exit(8);
                     }
                 } else if(string(argv[i-1]) == "-o"){
                     if(isNumber(string(argv[i]))) {
                         int contextSwitchHolder = stoi(string(argv[i]));
                         if(contextSwitchHolder<100 || contextSwitchHolder>1000){
                             cout << "The given number for argument -o must be smaller than 1001 and greater than 99: " << argv[i] << endl;
-                            exit(3);
+                            exit(9);
                         } else if (commandInput.contextSwitch != 0) {
                             cout << "You can not specify an argument twice." << endl;
-                            exit(3);
+                            exit(10);
                         } else {
                             commandInput.contextSwitch = contextSwitchHolder;
                         }
                     } else {
                         cout << "The given command for argument -o is not an integer " << argv[i] << endl;
-                        exit(3);
+                        exit(11);
                     }
                 } else if(string(argv[i-1]) == "-t"){
                     if(isNumber(string(argv[i]))) {
                         int timeSliceHolder = stoi(string(argv[i]));
                         if(timeSliceHolder<200 || timeSliceHolder>2000){
                             cout << "The given number for argument -t must be smaller than 2001 and greater than 199: " << argv[i] << endl;
-                            exit(3);
+                            exit(12);
                         } else {
                             commandInput.timeSlice = timeSliceHolder;
                         }
                     } else if (commandInput.timeSlice != 0) {
                         cout << "You can not specify an argument twice." << endl;
-                        exit(3);
+                        exit(13);
                     } else {
                         cout << "The given command for argument -t is not an integer " << argv[i] << endl;
-                        exit(3);
+                        exit(14);
                     }
                 }
                 atArgument = false;
             } else {
                 cout << "Incorrect command line argument " << i << endl;
-                exit(3);
+                exit(15);
             }
         }
     } else {
         cout << "You must have arguments" << endl;
-        exit(3);
+        exit(16);
     }
-    if(commandInput.cores==0 || commandInput.algorithm==0 || commandInput.processors==0 || commandInput.contextSwitch==0 || (commandInput.timeSlice==0 && commandInput.algorithm==0)) {
+    if(commandInput.cores==0 || commandInput.algorithm==-1 || commandInput.processors==0 || commandInput.contextSwitch==0 || (commandInput.timeSlice==0 && commandInput.algorithm==0)) {
         cout << "The correct amount of arguments was not provided" << endl;
-        exit(3);
+        exit(17);
     }
 }
 
@@ -244,37 +251,37 @@ void* mainThreadProcess(void* obj) {
     MainThread *mainThread = (MainThread*)obj;
     //Create core threads
     pthread_t threads[commandInput.cores];
-    Core *core[commandInput.cores];
+    Core *core = new Core[commandInput.cores];
     //looked up switch syntax
     //http://en.cppreference.com/w/cpp/language/switch
     //Will run the algorithm for the scheduler selected
     switch(commandInput.algorithm) {
         case 0:
             for (int i=0; i<commandInput.cores; i++) {
-                core[i]->id = i;
-                core[i]->idle = true;
-                pthread_create(&threads[i], NULL, &executeRoundRobin, (void*)core[i]);
+                core[i].id = i;
+                core[i].idle = true;
+                pthread_create(&threads[i], NULL, &executeRoundRobin, (void*)&core[i]);
             }
             break;
         case 1:
             for (int i=0; i<commandInput.cores; i++) {
-                core[i]->id = i;
-                core[i]->idle = true;
-                pthread_create(&threads[i], NULL, &executeFirstComeFirstServe, (void*)core[i]);
+                core[i].id = i;
+                core[i].idle = true;
+                pthread_create(&threads[i], NULL, &executeFirstComeFirstServe, (void*)&core[i]);
             }
             break;
         case 2:
             for (int i=0; i<commandInput.cores; i++) {
-                core[i]->id = i;
-                core[i]->idle = true;
-                pthread_create(&threads[i], NULL, &executeShortestJobFirst, (void*)core[i]);
+                core[i].id = i;
+                core[i].idle = true;
+                pthread_create(&threads[i], NULL, &executeShortestJobFirst, (void*)&core[i]);
             }
             break;
         case 3:
             for (int i=0; i<commandInput.cores; i++) {
-                core[i]->id = i;
-                core[i]->idle = true;
-                pthread_create(&threads[i], NULL, &executePreemptivePriority, (void*)core[i]);
+                core[i].id = i;
+                core[i].idle = true;
+                pthread_create(&threads[i], NULL, &executePreemptivePriority, (void*)&core[i]);
             }
             break;
     }
