@@ -327,3 +327,20 @@ void* processActivator(void* obj){
      *
      */
 }
+
+//Use to get approporiate time for each process
+void getTime(){
+  struct timeval now;
+  gettimeofday(&now, NULL);
+}
+
+//https://stackoverflow.com/questions/2150291/how-do-i-measure-a-time-interval-in-c
+//Use to get turn time, wait time, and CPU time
+double getElapsedTime(double t1, double t2){
+	double result;
+	
+	result = (t2.tv_sec - t1.tv_sec) * 1000.0;
+	result += (t2.tv_usec - t1.tv_usec) / 1000.0;
+	
+	return result;
+}
