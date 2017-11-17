@@ -2,8 +2,9 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
-#include <string>
 #include <sys/time.h>
+#include <random>
+#include <unistd.h>
 
 //This is a CPP that will be compiled under c++ standard 11
 //compilable with g++ -o main main.cpp -std=c++11
@@ -305,6 +306,29 @@ void* mainThreadProcess(void* obj) {
 
 void* executeRoundRobin(void* obj) {
     Core *core = (Core*)obj;
+    vector<Process> *processCollection = core->processCollection;
+    //Check that all processes have been created.
+    //Check that none in queue
+    while (!processCollection->empty()) { //&& noMoreProcesses) {
+        for (int i=0; i<processCollection->size(); i++) {
+            Process currProcess = processCollection->at(i);
+            if (currProcess.state == "Ready") {
+                //Perform Cpu burst
+                int waitTime = currProcess.cpuburstTimes[currProcess.cpuBursts];
+                //Round Robin won't be interrupted so wait (Perform CPU burst)
+                sleep(waitTime);
+                currProcess.cpuBursts++;
+
+                //Need to find correct conditional check
+                if (currProcess.cpuBursts > currProcess.cpuburstTimes.size()) {
+                    //Check if ready to be terminated
+                    processCollection->erase(processCollection->begin() + i);
+                } else {
+                    currProcess.state = "IO";
+                }
+            }
+        }
+    }
 
 }
 void* executeFirstComeFirstServe(void* obj){
@@ -319,8 +343,30 @@ void* executePreemptivePriority(void* obj) {
     Core *core = (Core*)obj;
 
 }
+
+/**
+ * Separate thread that creates processes at random intervals
+ * @param obj
+ * @return
+ */
 void* processActivator(void* obj){
     vector<Process> *processCollection = (vector<Process>*)obj;
+    while (processCollection->size() <= commandInput.processors) {
+        //Thread safe random number generator
+        random_device randomDevice;
+        mt19937 mt(randomDevice());
+        uniform_real_distribution<int> processTime(2, 10);
+
+        int waitTime = processTime(mt);
+        sleep(waitTime);
+
+        for (int i=0; i<processCollection->size(); i++) {
+            if (processCollection->at(i).state == "Not Created") {
+                processCollection->at(i).state = "Ready";
+                break;
+            }
+        }
+    }
     /*
      * This is where we will have an infinite loop that keeps
      * checking the time of the simulation to switch processes
@@ -337,11 +383,11 @@ void getTime(){
 
 //https://stackoverflow.com/questions/2150291/how-do-i-measure-a-time-interval-in-c
 //Use to get turn time, wait time, and CPU time
-double getElapsedTime(double t1, double t2){
+double getElapsedTime(timeval *t1, timeval *t2){
 	double result;
 	
-	result = (t2.tv_sec - t1.tv_sec) * 1000.0;
-	result += (t2.tv_usec - t1.tv_usec) / 1000.0;
+	result = (t2->tv_sec - t1->tv_sec) * 1000.0;
+	result += (t2->tv_usec - t1->tv_usec) / 1000.0;
 	
 	return result;
 }
