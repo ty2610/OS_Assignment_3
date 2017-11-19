@@ -34,6 +34,7 @@ struct Process {
     float waitTime;
     int cpuBursts;
     bool selected;
+    float restartTime;
 };
 
 struct CommandInput {
@@ -408,7 +409,7 @@ void* executeFirstComeFirstServe(void* obj){
             //mainThreadObject.processCollection.at(place).startTime = now() + mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot];
             mtx.lock();
 
-            mainThreadObject.processCollection.at(place).waitTime = (1000.0 * clock() / CLOCKS_PER_SEC) +
+            mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) +
                                                                      (mainThreadObject.processCollection.at(
                                                                              place).ioBurstTimes[mainThreadObject.processCollection.at(
                                                                              place).ioBurstSpot]);
@@ -447,7 +448,7 @@ void* processActivator(void* obj){
         //cout << "HERE" << endl;
         for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
             //cout << processCollection->at(i).state << endl;
-            if ((mainThreadObject.processCollection.at(i).state == "IO" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).waitTime) || (mainThreadObject.processCollection.at(i).state == "Not Created" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).startTime)) {
+            if ((mainThreadObject.processCollection.at(i).state == "IO" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).restartTime) || (mainThreadObject.processCollection.at(i).state == "Not Created" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).startTime)) {
                 //MUST ADD LOCK HERE TO
                 float local = (1000.0 * clock() / CLOCKS_PER_SEC);
                 mtx.lock();
