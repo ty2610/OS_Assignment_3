@@ -1,9 +1,7 @@
+#include <vector>
 class Process {
 
     private:
-        bool doingIo;
-        bool done;
-        bool ready;
         int core;
         int cpuBursts; //Random number between 2 and 10
         int cpuTime; //Random number between 1000 and 6000
@@ -14,19 +12,21 @@ class Process {
         int remainingTime;
         int startWaitTime;
         int waitTime;
+        int turnTime;
+        string state;
+        vector<int> ioBurstTimes;
+        vector<int> cpuburstTimes;
 
     public:
         Process() {
-            this->doingIo = false;
-            this->done = false;
-            this->ready = true;
+
         }
 
         int getPid() {
             return this->pid;
         }
         void setPid(int pid) {
-            this.pid = pid;
+            this->pid = pid;
         }
 
         int getIoBursts() {
@@ -79,24 +79,10 @@ class Process {
         }
 
         int getWaitTime() {
-            return this.waitTime();
+            return this->waitTime;
         }
-        void setWaitTime() {
-            this.waitTime = waitTime;
-        }
-
-        bool getDone() {
-            return this->done;
-        }
-        void setDone(bool done) {
-            this->done = done;
-        }
-
-        bool getDoingIo() {
-            return this->doingIo;
-        }
-        void setDoingIo(bool doingIo) {
-            this->doingIo = doingIo;
+        void setWaitTime(int waitTime) {
+            this->waitTime = waitTime;
         }
 
         int getCore() {
@@ -106,10 +92,30 @@ class Process {
             this->core = core;
         }
 
-        bool getReady() {
-            return this->ready;
+        string getState() {
+            return this->state;
         }
-        void setReady(bool ready) {
-            this->ready = ready;
+
+        void setState(string state) {
+            this->state = state;
         }
+
+        vector<int> getIOBurstTimes() {
+            return this->ioBurstTimes;
+        }
+
+        void setIOBurstTimes(vector<int> ioBurstTimes) {
+            this->ioBurstTimes = ioBurstTimes;
+        }
+
+        vector<int> getCPUBurstTimes() {
+            return this->cpuburstTimes;
+        }
+
+        void setCPUBurstTimes(vector<int> CPUBurstTimes) {
+            this->cpuburstTimes = CPUBurstTimes;
+        }
+
+        //vector<int> ioBurstTimes;
+        //vector<int> cpuburstTimes;
 };
