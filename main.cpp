@@ -34,6 +34,7 @@ struct Process {
     double cpuBurstWaitTime;
     int robinLocation;
     double terminatedTime;
+    double terminatedTotal;
 };
 
 struct CommandInput {
@@ -326,7 +327,10 @@ void* mainThreadProcess(void* obj) {
     for (int i=0; i<commandInput.cores; i++) {
         pthread_join(threads[i], NULL);
     }
+
     mainThreadObject.done = true;
+
+    pthread_join(outputThread,NULL);
     /*
      * Print CPU stats
      */
@@ -357,7 +361,7 @@ void* executeRoundRobin(void* obj) {
                 }
             }
 
-            cout << "Executing Process " << place << endl;
+            //cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
             mainThreadObject.processCollection.at(place).core = core->id;
             mtx.unlock();
@@ -378,14 +382,15 @@ void* executeRoundRobin(void* obj) {
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot == mainThreadObject.processCollection.at(place).cpuBursts) {
                 mainThreadObject.processCollection.at(place).state = "Terminated";
                 mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
-                cout << "retiring process " << mainThreadObject.location << endl;
+                mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
+                //cout << "retiring process " << mainThreadObject.location << endl;
                 break;
             }
             mtx.lock();
             if(full){
                 mainThreadObject.processCollection.at(place).state = "IO";
                 mainThreadObject.processCollection.at(place).ioBurstSpot++;
-                cout << "putting process " << place << " in IO" << endl;
+                //cout << "putting process " << place << " in IO" << endl;
                 //perform IO burst
                 mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
             } else {
@@ -436,7 +441,7 @@ void* executeFirstComeFirstServe(void* obj){
             }
 
             //currProcess = mainThreadObject.processCollection.at(place);
-            cout << "Executing Process " << place << endl;
+            //cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
             mainThreadObject.processCollection.at(place).core = core->id;
             mtx.unlock();
@@ -445,8 +450,9 @@ void* executeFirstComeFirstServe(void* obj){
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot == mainThreadObject.processCollection.at(place).cpuBursts) {
                 mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
+                mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
                 mainThreadObject.processCollection.at(place).state = "Terminated";
-                cout << "retiring process " << place << endl;
+                //cout << "retiring process " << place << endl;
                 break;
             }
             //mainThreadObject.applicationStart = 1000.0 * clock() / CLOCKS_PER_SEC;
@@ -455,7 +461,7 @@ void* executeFirstComeFirstServe(void* obj){
 
             mainThreadObject.processCollection.at(place).state = "IO";
             mainThreadObject.processCollection.at(place).ioBurstSpot++;
-            cout << "putting process " << place << " in IO" << endl;
+            //cout << "putting process " << place << " in IO" << endl;
 
             //perform IO burst
             mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
@@ -492,7 +498,7 @@ void* executeShortestJobFirst(void* obj) {
                 }
             }
             //currProcess = mainThreadObject.processCollection.at(place);
-            cout << "Executing Process " << place << endl;
+            //cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
             mainThreadObject.processCollection.at(place).core = core->id;
             mtx.unlock();
@@ -508,8 +514,9 @@ void* executeShortestJobFirst(void* obj) {
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot ==
                 mainThreadObject.processCollection.at(place).cpuBursts) {
                 mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
+                mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
                 mainThreadObject.processCollection.at(place).state = "Terminated";
-                cout << "retiring process " << place << endl;
+                //cout << "retiring process " << place << endl;
                 continue;
             }
             //mainThreadObject.applicationStart = 1000.0 * clock() / CLOCKS_PER_SEC;
@@ -523,7 +530,7 @@ void* executeShortestJobFirst(void* obj) {
             mainThreadObject.processCollection.at(place).state = "IO";
             mainThreadObject.processCollection.at(place).ioBurstSpot++;
 
-            cout << "putting process " << place << " in IO" << endl;
+            //cout << "putting process " << place << " in IO" << endl;
             mtx.unlock();
             sleep(commandInput.contextSwitch/1000);
         }
@@ -561,7 +568,7 @@ void* executePreemptivePriority(void* obj) {
                 }
             }
             //currProcess = mainThreadObject.processCollection.at(place);
-            cout << "Executing Process " << place << endl;
+            //cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
             mainThreadObject.processCollection.at(place).core = core->id;
             mtx.unlock();
@@ -575,8 +582,9 @@ void* executePreemptivePriority(void* obj) {
                 if (mainThreadObject.processCollection.at(place).cpuBurstSpot ==
                     mainThreadObject.processCollection.at(place).cpuBursts) {
                     mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
+                    mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
                     mainThreadObject.processCollection.at(place).state = "Terminated";
-                    cout << "retiring process " << place << endl;
+                    //cout << "retiring process " << place << endl;
                     mtx.unlock();
                     continue;
                 }
@@ -587,7 +595,7 @@ void* executePreemptivePriority(void* obj) {
                                                                                    place).ioBurstSpot]);
                 mainThreadObject.processCollection.at(place).state = "IO";
                 mainThreadObject.processCollection.at(place).ioBurstSpot++;
-                cout << "putting process " << place << " in IO" << endl;
+                //cout << "putting process " << place << " in IO" << endl;
             } else {
                 mainThreadObject.processCollection.at(place).kickedOff = false;
             }
@@ -646,9 +654,9 @@ void* processActivator(void* obj){
                 //MUST ADD LOCK HERE TO
 
                 if (mainThreadObject.processCollection.at(i).state == "IO") {
-                    cout << i << " process is done with IO" << endl;
+                    //cout << i << " process is done with IO" << endl;
                 } else {
-                    cout << i << " process is being created" << endl;
+                    //cout << i << " process is being created" << endl;
                 }
                 if(commandInput.algorithm == 3) {
                     insertPreemptivePriority(i);
@@ -718,18 +726,26 @@ void* displayOutput(void* obj){
 
     printf("| %6s | %8s | %10s | %4s | %9s | %9s | %8s | %11s |\n", "PID", "Priority", "State", "Core", "Turn Time", "Wait Time", "CPU Time", "Remain Time");
     printf("+--------+----------+------------+------+-----------+-----------+----------+-------------+\n");
-
+    bool hasRun = false;
     //writes the line to the terminal
     while (!mainThreadObject.done) {
         double timeOneCpu;
         double cpuRemainTime;
         double elapsedTime;
+        string onCore;
+        if(hasRun) {
+            for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
+                fputs("\033[A\033[2K", stdout);
+                //cout << "\033[2J\033[1;1H";
+            }
+        }
         mtx.lock();
         for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
             Process process = mainThreadObject.processCollection.at(i);
             timeOneCpu = 0;
             cpuRemainTime = 0;
             elapsedTime = 0;
+            onCore = "0";
             for(int j=0; j<process.cpuBurstSpot; j++) {
                 timeOneCpu += process.cpuburstTimes[j];
             }
@@ -739,24 +755,40 @@ void* displayOutput(void* obj){
             }
             if(process.state=="Terminated"){
                 elapsedTime = process.terminatedTime;
+            } else if(process.state=="Not Created") {
+                elapsedTime = 0;
             } else {
                 elapsedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - process.startTime;
             }
 
-
-            printf("\r| %6d | %8d | %10s | %4d | %6.3f | %6.3f | %5.3f | %8.3f |\n", process.PID, process.priority,
-                   process.state.c_str(), process.core, elapsedTime, process.waitTime, timeOneCpu,
+            if(process.state != "Executing") {
+                onCore = "--";
+            } else {
+                onCore = to_string(process.core);
+            }
+            printf("| %6d | %8d | %10s | %8s | %6.3f | %6.3f | %5.3f | %8.3f |\n", process.PID, process.priority,
+                   process.state.c_str(), onCore.c_str(), elapsedTime, process.waitTime, timeOneCpu,
                    cpuRemainTime);
+            hasRun = true;
         }
         mtx.unlock();
-
         //erase the lines from the terminal
-        /*for (int i=0; i<mainThreadObject.processCollection.size()+1; i++) {
-            fputs("\033[A\033[2K", stdout);
-            //cout << "\033[2J\033[1;1H";
-        }
-        rewind(stdout);*/
+        rewind(stdout);
         sleep(1);
     }
-    //MUST DISPLAY FINAL OUTPUT HERE
+
+
+    double turnAround = 0;
+    for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
+        turnAround += mainThreadObject.processCollection.at(i).terminatedTotal;
+    }
+    turnAround = turnAround / mainThreadObject.processCollection.size();
+    cout << "Average turnaround time: " << turnAround << endl;
+    double totalCPU = 0;
+    for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
+        for(int j=0; j<mainThreadObject.processCollection.at(i).cpuBursts; j++){
+            totalCPU += mainThreadObject.processCollection.at(i).cpuburstTimes[j];
+        }
+    }
+    cout << "Average CPU utilization: " << (totalCPU / commandInput.cores) * (1000.0 * clock() / CLOCKS_PER_SEC) << endl;
 }
