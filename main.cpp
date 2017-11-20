@@ -28,7 +28,6 @@ struct Process {
     float startTime;
     float waitTime;
     int cpuBursts;
-    bool selected;
     float restartTime;
 };
 
@@ -261,7 +260,6 @@ vector<Process> createProcesses() {
         }
         tempProcess.cpuBurstSpot = 0;
         tempProcess.ioBurstSpot = 0;
-        tempProcess.selected = false;
         processCollection.insert(processCollection.end(),tempProcess);
     }
     return processCollection;
@@ -372,44 +370,34 @@ void* executeFirstComeFirstServe(void* obj){
             //lock must start HERE
             mtx.lock();
             for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
-                if ((mainThreadObject.processCollection.at(i).state == "Ready" ||
-                     mainThreadObject.processCollection.at(i).state == "IO") &&
-                    !mainThreadObject.processCollection.at(i).selected) {
-                    lowest = mainThreadObject.processCollection.at(i).startTime;
+                if (mainThreadObject.processCollection.at(i).state == "Ready") {
+                    lowest = mainThreadObject.processCollection.at(i).restartTime;
                     place = i;
                     break;
                 }
             }
             for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
-                if ((mainThreadObject.processCollection.at(i).state == "Ready" ||
-                     mainThreadObject.processCollection.at(i).state == "IO") &&
-                    !mainThreadObject.processCollection.at(i).selected) {
-                    if (mainThreadObject.processCollection.at(i).startTime == 0) {
+                if (mainThreadObject.processCollection.at(i).state == "Ready") {
+                    if (mainThreadObject.processCollection.at(i).restartTime == 0) {
                         lowest = 0;
                         place = i;
                         break;
-                    } else if (mainThreadObject.processCollection.at(i).startTime < lowest) {
-                        lowest = mainThreadObject.processCollection.at(i).startTime;
+                    } else if (mainThreadObject.processCollection.at(i).restartTime < lowest) {
+                        lowest = mainThreadObject.processCollection.at(i).restartTime;
                         place = i;
                     }
 
                 }
             }
-            mainThreadObject.processCollection.at(place).selected = true;
-            mtx.unlock();
-            while (mainThreadObject.processCollection.at(place).state == "IO") {
-            }
-            mtx.lock();
+
             //currProcess = mainThreadObject.processCollection.at(place);
             cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
             mtx.unlock();
             //LET GO OF KEY
-            sleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
-                    place).cpuBurstSpot] / 1000);
+            sleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] / 1000);
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
-            if (mainThreadObject.processCollection.at(place).cpuBurstSpot ==
-                mainThreadObject.processCollection.at(place).cpuBursts) {
+            if (mainThreadObject.processCollection.at(place).cpuBurstSpot == mainThreadObject.processCollection.at(place).cpuBursts) {
 
                 mainThreadObject.processCollection.at(place).state = "Terminated";
                 cout << "retiring process " << place << endl;
@@ -421,19 +409,10 @@ void* executeFirstComeFirstServe(void* obj){
 
             mainThreadObject.processCollection.at(place).state = "IO";
             mainThreadObject.processCollection.at(place).ioBurstSpot++;
-            mainThreadObject.processCollection.at(place).selected = false;
             cout << "putting process " << place << " in IO" << endl;
             mtx.unlock();
             //perform IO burst
-            mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) +
-                                                                       (mainThreadObject.processCollection.at(
-                                                                               place).ioBurstTimes[mainThreadObject.processCollection.at(
-                                                                               place).ioBurstSpot]);
-
-            //Put process to the end of the list
-            Process temp = mainThreadObject.processCollection.at(place);
-            mainThreadObject.processCollection.erase(mainThreadObject.processCollection.begin() + place);
-            mainThreadObject.processCollection.push_back(temp);
+            mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
 
             //Context switch
             sleep(commandInput.contextSwitch / 1000);
@@ -473,14 +452,14 @@ void* executeShortestJobFirst(void* obj){
             //lock must start HERE
             mtx.lock();
             for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
-                if ((mainThreadObject.processCollection.at(i).state == "Ready" || mainThreadObject.processCollection.at(i).state == "IO") && !mainThreadObject.processCollection.at(i).selected) {
+                if (mainThreadObject.processCollection.at(i).state == "Ready") {
                     shortest = mainThreadObject.processCollection.at(i).cpuTime;
                     place = i;
                     break;
                 }
             }
             for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
-                if ((mainThreadObject.processCollection.at(i).state == "Ready" || mainThreadObject.processCollection.at(i).state == "IO") && !mainThreadObject.processCollection.at(i).selected) {
+                if (mainThreadObject.processCollection.at(i).state == "Ready") {
                     if (mainThreadObject.processCollection.at(i).cpuTime == 0) {
                         shortest = 0;
                         place = i;
@@ -492,11 +471,6 @@ void* executeShortestJobFirst(void* obj){
 
                 }
             }
-            mainThreadObject.processCollection.at(place).selected = true;
-            mtx.unlock();
-            while(mainThreadObject.processCollection.at(place).state == "IO") {
-            }
-            mtx.lock();
             //currProcess = mainThreadObject.processCollection.at(place);
             cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
@@ -522,7 +496,6 @@ void* executeShortestJobFirst(void* obj){
                                                                                place).ioBurstSpot]);
             mainThreadObject.processCollection.at(place).state = "IO";
             mainThreadObject.processCollection.at(place).ioBurstSpot++;
-            mainThreadObject.processCollection.at(place).selected = false;
 
             cout << "putting process " << place << " in IO" << endl;
             mtx.unlock();
@@ -564,18 +537,14 @@ void* executePreemptivePriority(void* obj) {
             //lock must start HERE
             mtx.lock();
             for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
-                if ((mainThreadObject.processCollection.at(i).state == "Ready" ||
-                     mainThreadObject.processCollection.at(i).state == "IO") &&
-                    !mainThreadObject.processCollection.at(i).selected) {
+                if (mainThreadObject.processCollection.at(i).state == "Ready") {
                     lowestPriority = mainThreadObject.processCollection.at(i).priority;
                     place = i;
                     break;
                 }
             }
             for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
-                if ((mainThreadObject.processCollection.at(i).state == "Ready" ||
-                     mainThreadObject.processCollection.at(i).state == "IO") &&
-                    !mainThreadObject.processCollection.at(i).selected) {
+                if (mainThreadObject.processCollection.at(i).state == "Ready") {
                     if (mainThreadObject.processCollection.at(i).priority == 0) {
                         lowestPriority = 0;
                         place = i;
@@ -587,11 +556,6 @@ void* executePreemptivePriority(void* obj) {
 
                 }
             }
-            mainThreadObject.processCollection.at(place).selected = true;
-            mtx.unlock();
-            while (mainThreadObject.processCollection.at(place).state == "IO") {
-            }
-            mtx.lock();
             //currProcess = mainThreadObject.processCollection.at(place);
             cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
@@ -619,7 +583,6 @@ void* executePreemptivePriority(void* obj) {
             float local = 1000.0 * clock() / CLOCKS_PER_SEC;
             mainThreadObject.processCollection.at(place).state = "IO";
             mainThreadObject.processCollection.at(place).ioBurstSpot++;
-            mainThreadObject.processCollection.at(place).selected = false;
             cout << "putting process " << place << " in IO" << endl;
             mtx.unlock();
             sleep(commandInput.contextSwitch / 1000);
@@ -700,23 +663,22 @@ void* processActivator(void* obj){
             //cout << processCollection->at(i).state << endl;
             if ((mainThreadObject.processCollection.at(i).state == "IO" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).restartTime) || (mainThreadObject.processCollection.at(i).state == "Not Created" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).startTime)) {
                 //MUST ADD LOCK HERE TO
-                float local = (1000.0 * clock() / CLOCKS_PER_SEC);
                 mtx.lock();
-                switch (commandInput.algorithm) {
-                    case 0 :
-                        break;
-                    case 1 :
-                        sortFirstComeFirstServe();
-                    case 2 :
-                        sortShortestJobFirst();
-                        break;
-                    case 3 :
-                        insertPreemptivePriority(i);
-                        sortPreemptivePriority();
-                        break;
+                if (mainThreadObject.processCollection.at(i).state == "IO") {
+                    switch (commandInput.algorithm) {
+                        case 2 :
+                            sortShortestJobFirst();
+                            break;
+                        case 3 :
+                            insertPreemptivePriority(i);
+                            sortPreemptivePriority();
+                            break;
+                    }
+                    cout << i << " process is done with IO" << endl;
+                } else {
+                    cout << i << " process is being created" << endl;
                 }
                 mainThreadObject.processCollection.at(i).state = "Ready";
-                cout << i << " process is done with IO" << endl;
                 mtx.unlock();
             }
             if (mainThreadObject.processCollection.at(i).state == "Terminated") {
