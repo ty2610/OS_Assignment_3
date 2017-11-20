@@ -76,6 +76,7 @@ void insertPreemptivePriority(int index);
 void* mainThreadProcess(void* obj);
 void* processActivator(void* obj);
 bool readyProcess();
+void executeProcess(int timeToWait, int place);
 
 int main(int argc, char *argv[]) {
     commandInput.cores = 0;
@@ -622,8 +623,8 @@ void* executePreemptivePriority(void* obj) {
             mainThreadObject.processCollection.at(place).state = "Executing";
             mtx.unlock();
             //LET GO OF KEY
-            sleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
-                    place).cpuBurstSpot] / 1000);
+            executeProcess(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
+                    place).cpuBurstSpot] / 1000, place);
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot ==
                 mainThreadObject.processCollection.at(place).cpuBursts) {
@@ -769,6 +770,23 @@ bool readyProcess() {
     }
     mtx.unlock();
     return false;
+}
+
+/**
+ * Execute the CPU time
+ * Remove if priority tells to do so
+ */
+void executeProcess(int timeToWait, int place) {
+    double currTime = 1000.0 * clock() / CLOCKS_PER_SEC;
+    double endTime = currTime + timeToWait;
+    while (mainThreadObject.processCollection.at(place).state == "Executing") {
+        if (endTime >= (1000.0 * clock() / CLOCKS_PER_SEC)) {
+            return;
+        }
+    }
+    // Kicked off cpu so recalculate
+    double removedTime = 1000.0 * clock() / CLOCKS_PER_SEC;
+    mainThreadObject.processCollection.at(place).cpuTime -= (endTime - removedTime);
 }
 
 //Use to get approporiate time for each process
