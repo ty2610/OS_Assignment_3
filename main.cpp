@@ -75,6 +75,7 @@ void* mainThreadProcess(void* obj);
 void* processActivator(void* obj);
 bool readyProcess();
 void executeProcess(int timeToWait, int place);
+void* displayOutput(void* obj);
 
 int main(int argc, char *argv[]) {
     commandInput.cores = 0;
@@ -89,25 +90,25 @@ int main(int argc, char *argv[]) {
 
     //Create main thread
     pthread_t mainThread;
+    pthread_t outputThread;
     pthread_create(&mainThread, NULL, &mainThreadProcess, NULL);
+    pthread_create(&outputThread, NULL, &displayOutput, NULL);
 
     pthread_join(mainThread, NULL);
+    pthread_join(outputThread, NULL);
     //THE OUTPUT SHOULD BE PUT IN IT'S OWN METHOD
-    Process process;
-    process.PID = 0;
-    process.priority = 0;
-    process.state = "Ready";
-    process.core = 0;
-    process.turnTime = 0;
-    process.waitTime = 0;
-    process.cpuTime = 0;
-    process.remainTime = 0;
     cout << "| PID | Priority | State | Core | Turn Time | Wait Time | CPU Time | Remain Time |" << endl;
     cout << "+-----+----------+-------+------+-----------+-----------+----------+-------------+" << endl;
-    string state = "READY";
-    for(int i=0; i<5; i++) {
-        cout << "| " + to_string(process.PID) + "   | " + to_string(process.priority) + "        | " + state + " | " + to_string(process.core) + "    | "  + to_string(process.turnTime) + "         | " + to_string(process.waitTime)+ "         | "  + to_string(process.cpuTime) + "        | "  + to_string(process.remainTime) + "           |" << endl;
+    while (!mainThreadObject.done) {
+        for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
+            Process process = mainThreadObject.processCollection.at(i);
+            cout << "| " + to_string(process.PID) + "   | " + to_string(process.priority) + "        | " + process.state +
+                    " | " + to_string(process.core) + "    | " + to_string(process.turnTime) + "         | " +
+                    to_string(process.waitTime) + "         | " + to_string(process.cpuTime) + "        | " +
+                    to_string(process.remainTime) + "           |" << endl;
+        }
     }
+
     return 0;
 }
 
@@ -753,4 +754,26 @@ double getElapsedTime(timeval *t1, timeval *t2){
 	result += (t2->tv_usec - t1->tv_usec) / 1000.0;
 	
 	return result;
+}
+
+void* displayOutput(void* obj){
+
+    printf("| %6s | %8s | %10s | %4s | %9s | %9s | %8s | %11s |\n", "PID", "Priority", "State", "Core", "Turn Time", "Wait Time", "CPU Time", "Remain Time");
+    printf("+--------+----------+------------+------+-----------+-----------+----------+-------------+\n");
+
+    //writes the line to the terminal
+    while (!mainThreadObject.done) {
+        for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
+            Process process = mainThreadObject.processCollection.at(i);
+            printf("| %6d | %8d | %10s | %4d | %9.3f | %9.3f | %8.3f | %11.3f |\n", process.PID, process.priority,
+                   process.state, process.core, process.turnTime, process.waitTime, process.cpuTime,
+                   process.remainTime);
+        }
+
+        //erase the lines from the terminal
+        for (int j = 0; j < mainThreadObject.processCollection.size(); j++) {
+            fputs("\033[A\033[2K", stdout);
+        }
+        rewind(stdout);
+    }
 }
