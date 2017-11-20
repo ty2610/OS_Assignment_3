@@ -387,7 +387,7 @@ void* executeFirstComeFirstServe(void* obj){
             }
 
             //currProcess = mainThreadObject.processCollection.at(place);
-            cout << "Executing Process " << place << endl;
+            //cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
             mtx.unlock();
             //LET GO OF KEY
@@ -405,7 +405,7 @@ void* executeFirstComeFirstServe(void* obj){
 
             mainThreadObject.processCollection.at(place).state = "IO";
             mainThreadObject.processCollection.at(place).ioBurstSpot++;
-            cout << "putting process " << place << " in IO" << endl;
+            //cout << "putting process " << place << " in IO" << endl;
             mtx.unlock();
             //perform IO burst
             mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
@@ -426,19 +426,19 @@ void* executeShortestJobFirst(void* obj){
             mtx.lock();
             for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
                 if (mainThreadObject.processCollection.at(i).state == "Ready") {
-                    shortest = mainThreadObject.processCollection.at(i).cpuTime;
+                    shortest = mainThreadObject.processCollection.at(i).cpuburstTimes[mainThreadObject.processCollection.at(i).cpuBurstSpot];
                     place = i;
                     break;
                 }
             }
             for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
                 if (mainThreadObject.processCollection.at(i).state == "Ready") {
-                    if (mainThreadObject.processCollection.at(i).cpuTime == 0) {
+                    if (mainThreadObject.processCollection.at(i).cpuburstTimes[mainThreadObject.processCollection.at(i).cpuBurstSpot] == 0) {
                         shortest = 0;
                         place = i;
                         break;
-                    } else if (mainThreadObject.processCollection.at(i).cpuTime < shortest) {
-                        shortest = mainThreadObject.processCollection.at(i).cpuTime;
+                    } else if (mainThreadObject.processCollection.at(i).cpuburstTimes[mainThreadObject.processCollection.at(i).cpuBurstSpot] < shortest) {
+                        shortest = mainThreadObject.processCollection.at(i).cpuburstTimes[mainThreadObject.processCollection.at(i).cpuBurstSpot];
                         place = i;
                     }
 
@@ -470,7 +470,7 @@ void* executeShortestJobFirst(void* obj){
             mainThreadObject.processCollection.at(place).state = "IO";
             mainThreadObject.processCollection.at(place).ioBurstSpot++;
 
-            cout << "putting process " << place << " in IO" << endl;
+            //cout << "putting process " << place << " in IO" << endl;
             mtx.unlock();
             sleep(commandInput.contextSwitch/1000);
         }
@@ -486,11 +486,11 @@ void sortShortestJobFirst() {
     int temp = 0;
     for(int i=0; i < n; i++){
         for(int j=1; j < (n-i); j++){
-            if(processCollection.at(j-1).cpuTime > processCollection.at(j).cpuTime){
+            if(processCollection.at(j-1).cpuburstTimes[mainThreadObject.processCollection.at(j-1).cpuBurstSpot] > processCollection.at(j).cpuburstTimes[mainThreadObject.processCollection.at(j).cpuBurstSpot]){
                 //swap elements
-                temp = processCollection.at(j-1).cpuTime;
-                processCollection.at(j-1).cpuTime = processCollection.at(j).cpuTime;
-                processCollection.at(j).cpuTime = temp;
+                temp = processCollection.at(j-1).cpuburstTimes[mainThreadObject.processCollection.at(j-1).cpuBurstSpot];
+                processCollection.at(j-1).cpuburstTimes[mainThreadObject.processCollection.at(j-1).cpuBurstSpot] = processCollection.at(j).cpuburstTimes[mainThreadObject.processCollection.at(j).cpuBurstSpot];
+                processCollection.at(j).cpuburstTimes[mainThreadObject.processCollection.at(j).cpuBurstSpot] = temp;
             }
 
         }
@@ -507,7 +507,7 @@ void insertShortestJobFirst(int index) {
     mainThreadObject.processCollection.erase(mainThreadObject.processCollection.begin() + index);
 
     for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
-        if (mainThreadObject.processCollection.at(i).cpuTime > temp.cpuTime) {
+        if (mainThreadObject.processCollection.at(i).cpuburstTimes[mainThreadObject.processCollection.at(i).cpuBurstSpot] > temp.cpuburstTimes[mainThreadObject.processCollection.at(i).cpuBurstSpot]) {
             mainThreadObject.processCollection.insert(mainThreadObject.processCollection.begin() + i, temp);
             break;
         }
@@ -570,7 +570,7 @@ void* executePreemptivePriority(void* obj) {
                                                                                place).ioBurstSpot]);
             mainThreadObject.processCollection.at(place).state = "IO";
             mainThreadObject.processCollection.at(place).ioBurstSpot++;
-            cout << "putting process " << place << " in IO" << endl;
+            //cout << "putting process " << place << " in IO" << endl;
             mtx.unlock();
             sleep(commandInput.contextSwitch / 1000);
         }
@@ -704,7 +704,7 @@ void executeProcess(int timeToWait, int place) {
     }
     // Kicked off cpu so recalculate
     double removedTime = 1000.0 * clock() / CLOCKS_PER_SEC;
-    mainThreadObject.processCollection.at(place).cpuTime -= (endTime - removedTime);
+    mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] -= (endTime - removedTime);
 }
 
 void* displayOutput(void* obj){
@@ -716,7 +716,7 @@ void* displayOutput(void* obj){
     while (!mainThreadObject.done) {
         for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
             Process process = mainThreadObject.processCollection.at(i);
-            printf("| %6d | %8d | %10s | %4d | %6.3f | %6.3f | %5.3f | %8.3f |\n", process.PID, process.priority,
+            printf("\r| %6d | %8d | %10s | %4d | %6.3f | %6.3f | %5.3f | %8.3f |\n", process.PID, process.priority,
                    process.state, process.core, process.turnTime, process.waitTime, process.cpuTime,
                    process.remainTime);
         }
