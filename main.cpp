@@ -18,6 +18,7 @@ struct Process {
     int core;
     double turnTime;
     double cpuTime;
+    double ioTime;
     double remainTime;
     int ioBursts;
     vector<double> ioBurstTimes;
@@ -28,7 +29,7 @@ struct Process {
     double waitTime;
     int cpuBursts;
     double restartTime;
-    //double collecti
+    double cpuTimeLeft;
 };
 
 struct CommandInput {
@@ -237,13 +238,21 @@ vector<Process> createProcesses() {
         }
         tempProcess.ioBursts = (rand() % 9) + 2;
         tempProcess.cpuBursts = tempProcess.ioBursts + 1;
+        double temp;
+        tempProcess.cpuTime = 0;
         for(int j=0; j<tempProcess.cpuBursts; j++) {
             //https://stackoverflow.com/questions/25649495/how-to-insert-element-at-beginning-of-vector
             //used this to learn how to push to the back of a vector (just switched start() with end())
-            tempProcess.cpuburstTimes.insert(tempProcess.cpuburstTimes.end(),(rand() % 5001) + 1000);
+            temp = (rand() % 5001) + 1000;
+            tempProcess.cpuburstTimes.insert(tempProcess.cpuburstTimes.end(),temp);
+            tempProcess.cpuTime += temp;
         }
+        tempProcess.cpuTimeLeft = tempProcess.cpuTime;
+        tempProcess.ioTime = 0;
         for(int j =0; j<tempProcess.ioBursts; j++) {
-            tempProcess.ioBurstTimes.insert(tempProcess.ioBurstTimes.end(),(rand() % 5001) + 1000);
+            temp = (rand() % 5001) + 1000;
+            tempProcess.ioBurstTimes.insert(tempProcess.ioBurstTimes.end(),temp);
+            tempProcess.ioTime+=temp;
         }
         tempProcess.cpuBurstSpot = 0;
         tempProcess.ioBurstSpot = 0;
