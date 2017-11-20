@@ -598,7 +598,6 @@ void sortPreemptivePriority() {
 void insertPreemptivePriority(int index) {
     Process temp = mainThreadObject.processCollection.at(index);
     mainThreadObject.processCollection.erase(mainThreadObject.processCollection.begin() + index);
-    bool done = false;
     //Loop executing items and check if they should be replaced
     for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
         if (mainThreadObject.processCollection.at(i).state == "Executing") {
@@ -608,18 +607,6 @@ void insertPreemptivePriority(int index) {
                 takeOffProcess.state = "Ready";
                 temp.state = "Executing";
                 mainThreadObject.processCollection.insert(mainThreadObject.processCollection.begin(), temp);
-
-                //Re-insert the process that we're taking off
-                insertPreemptivePriority(i);
-                done = true;
-            }
-        }
-    }
-    if (!done) {
-        for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
-            if (mainThreadObject.processCollection.at(i).priority > temp.priority) {
-                mainThreadObject.processCollection.insert(mainThreadObject.processCollection.begin() + i, temp);
-                break;
             }
         }
     }
