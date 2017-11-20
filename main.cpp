@@ -67,6 +67,7 @@ void* executeFirstComeFirstServe(void* obj);
 void sortFirstComeFirstServe();
 void* executeShortestJobFirst(void* obj);
 void sortShortestJobFirst();
+void insertShortestJobFirst(int index);
 void* executePreemptivePriority(void* obj);
 void sortPreemptivePriority();
 void insertPreemptivePriority(int index);
@@ -524,6 +525,23 @@ void sortShortestJobFirst() {
     }
 }
 
+/**
+ * Insert back in based on CPU time after IO finishes
+ * @param obj
+ * @return
+ */
+void insertShortestJobFirst(int index) {
+    Process temp = mainThreadObject.processCollection.at(index);
+    mainThreadObject.processCollection.erase(mainThreadObject.processCollection.begin() + index);
+
+    for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
+        if (mainThreadObject.processCollection.at(i).cpuTime > temp.cpuTime) {
+            mainThreadObject.processCollection.insert(mainThreadObject.processCollection.begin() + i, temp);
+            break;
+        }
+    }
+}
+
 void* executePreemptivePriority(void* obj) {
     Core *core = (Core*)obj;
     //Process currProcess;
@@ -648,14 +666,6 @@ void insertPreemptivePriority(int index) {
 void* processActivator(void* obj){
     int count = 0;
     while (!mainThreadObject.done) {
-        //Thread safe random number generator
-        random_device randomDevice;
-        mt19937 mt(randomDevice());
-        uniform_real_distribution<int> processTime(500.0, 8000.0);
-
-        double waitTime = processTime(mt);
-        sleep(waitTime);
-
         sleep(.25);
         count = 0;
         //cout << "HERE" << endl;
@@ -667,6 +677,7 @@ void* processActivator(void* obj){
                 if (mainThreadObject.processCollection.at(i).state == "IO") {
                     switch (commandInput.algorithm) {
                         case 2 :
+                            insertShortestJobFirst(i);
                             sortShortestJobFirst();
                             break;
                         case 3 :
