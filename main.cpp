@@ -3,9 +3,9 @@
 #include <cmath>
 #include <vector>
 #include <sys/time.h>
-#include <random>
 #include <unistd.h>
 #include <mutex>
+#include <random>
 
 //This is a CPP that will be compiled under c++ standard 11
 //compilable with g++ -o main main.cpp -std=c++11
@@ -21,14 +21,14 @@ struct Process {
     int cpuTime;
     int remainTime;
     int ioBursts;
-    vector<float> ioBurstTimes;
-    vector<float> cpuburstTimes;
+    vector<double> ioBurstTimes;
+    vector<double> cpuburstTimes;
     int ioBurstSpot;
     int cpuBurstSpot;
-    float startTime;
-    float waitTime;
+    double startTime;
+    double waitTime;
     int cpuBursts;
-    float restartTime;
+    double restartTime;
 };
 
 struct CommandInput {
@@ -39,16 +39,16 @@ struct CommandInput {
     //0-3
     int algorithm;
     //100-1000
-    float contextSwitch;
+    double contextSwitch;
     //200-2000
-    float timeSlice;
+    double timeSlice;
 }commandInput;
 
 //Only need one
 struct MainThread {
     vector<Process> processCollection;
     bool done;
-    float applicationStart;
+    double applicationStart;
 }mainThreadObject;
 
 struct Core {
@@ -235,6 +235,7 @@ void takeCommand(int argc, char *argv[]) {
 vector<Process> createProcesses() {
     int firstProcesses = floor(commandInput.processors/3);
     vector<Process> processCollection;
+    srand( time( NULL ) );
     for(int i=0; i<commandInput.processors; i++){
         Process tempProcess;
         tempProcess.PID = 1024 +i;
@@ -415,7 +416,6 @@ void* executeFirstComeFirstServe(void* obj){
             mtx.unlock();
             //perform IO burst
             mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
-
             //Context switch
             sleep(commandInput.contextSwitch / 1000);
         }
@@ -599,7 +599,6 @@ void* executePreemptivePriority(void* obj) {
                                                                        (mainThreadObject.processCollection.at(
                                                                                place).ioBurstTimes[mainThreadObject.processCollection.at(
                                                                                place).ioBurstSpot]);
-            float local = 1000.0 * clock() / CLOCKS_PER_SEC;
             mainThreadObject.processCollection.at(place).state = "IO";
             mainThreadObject.processCollection.at(place).ioBurstSpot++;
             cout << "putting process " << place << " in IO" << endl;
@@ -672,7 +671,7 @@ void* processActivator(void* obj){
         //cout << "HERE" << endl;
         for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
             //cout << processCollection->at(i).state << endl;
-            if ((mainThreadObject.processCollection.at(i).state == "IO" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).restartTime) || (mainThreadObject.processCollection.at(i).state == "Not Created" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).startTime)) {
+            if ((mainThreadObject.processCollection.at(i).state == "IO" || mainThreadObject.processCollection.at(i).state == "Not Created") && ((1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).startTime)) {
                 //MUST ADD LOCK HERE TO
                 mtx.lock();
                 if (mainThreadObject.processCollection.at(i).state == "IO") {
@@ -737,23 +736,6 @@ void executeProcess(int timeToWait, int place) {
     // Kicked off cpu so recalculate
     double removedTime = 1000.0 * clock() / CLOCKS_PER_SEC;
     mainThreadObject.processCollection.at(place).cpuTime -= (endTime - removedTime);
-}
-
-//Use to get approporiate time for each process
-void getTime(){
-  struct timeval now;
-  gettimeofday(&now, NULL);
-}
-
-//https://stackoverflow.com/questions/2150291/how-do-i-measure-a-time-interval-in-c
-//Use to get turn time, wait time, and CPU time
-double getElapsedTime(timeval *t1, timeval *t2){
-	double result;
-	
-	result = (t2->tv_sec - t1->tv_sec) * 1000.0;
-	result += (t2->tv_usec - t1->tv_usec) / 1000.0;
-	
-	return result;
 }
 
 void* displayOutput(void* obj){
