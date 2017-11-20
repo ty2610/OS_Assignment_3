@@ -33,6 +33,7 @@ struct Process {
     bool kickedOff;
     double cpuBurstWaitTime;
     int robinLocation;
+    double terminatedTime;
 };
 
 struct CommandInput {
@@ -261,6 +262,8 @@ vector<Process> createProcesses() {
         tempProcess.kickedOff = false;
         tempProcess.cpuBurstWaitTime = 0;
         tempProcess.robinLocation = i;
+        tempProcess.turnTime = 0;
+        tempProcess.core = 4;
         processCollection.insert(processCollection.end(),tempProcess);
     }
     return processCollection;
@@ -374,6 +377,7 @@ void* executeRoundRobin(void* obj) {
 
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot == mainThreadObject.processCollection.at(place).cpuBursts) {
                 mainThreadObject.processCollection.at(place).state = "Terminated";
+                mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
                 cout << "retiring process " << mainThreadObject.location << endl;
                 break;
             }
@@ -440,7 +444,7 @@ void* executeFirstComeFirstServe(void* obj){
             sleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] / 1000);
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot == mainThreadObject.processCollection.at(place).cpuBursts) {
-
+                mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
                 mainThreadObject.processCollection.at(place).state = "Terminated";
                 cout << "retiring process " << place << endl;
                 break;
@@ -503,7 +507,7 @@ void* executeShortestJobFirst(void* obj) {
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot ==
                 mainThreadObject.processCollection.at(place).cpuBursts) {
-
+                mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
                 mainThreadObject.processCollection.at(place).state = "Terminated";
                 cout << "retiring process " << place << endl;
                 continue;
@@ -570,7 +574,7 @@ void* executePreemptivePriority(void* obj) {
                 mainThreadObject.processCollection.at(place).cpuBurstSpot++;
                 if (mainThreadObject.processCollection.at(place).cpuBurstSpot ==
                     mainThreadObject.processCollection.at(place).cpuBursts) {
-
+                    mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
                     mainThreadObject.processCollection.at(place).state = "Terminated";
                     cout << "retiring process " << place << endl;
                     mtx.unlock();
@@ -717,17 +721,39 @@ void* displayOutput(void* obj){
 
     //writes the line to the terminal
     while (!mainThreadObject.done) {
+        double timeOneCpu;
+        double cpuRemainTime;
+        double elapsedTime;
+        mtx.lock();
         for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
             Process process = mainThreadObject.processCollection.at(i);
+            timeOneCpu = 0;
+            cpuRemainTime = 0;
+            elapsedTime = 0;
+            for(int j=0; j<process.cpuBurstSpot; j++) {
+                timeOneCpu += process.cpuburstTimes[j];
+            }
+            cpuRemainTime = process.cpuTime - timeOneCpu;
+            if(cpuRemainTime<0){
+                cpuRemainTime = 0;
+            }
+            if(process.state=="Terminated"){
+                elapsedTime = process.terminatedTime;
+            } else {
+                elapsedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - process.startTime;
+            }
+
+
             printf("\r| %6d | %8d | %10s | %4d | %6.3f | %6.3f | %5.3f | %8.3f |\n", process.PID, process.priority,
-                   process.state, process.core, process.turnTime, process.waitTime, process.cpuTime,
-                   process.remainTime);
+                   process.state.c_str(), process.core, elapsedTime, process.waitTime, timeOneCpu,
+                   cpuRemainTime);
         }
+        mtx.unlock();
 
         //erase the lines from the terminal
-        //cout << "\033[2J\033[1;1H";
         /*for (int i=0; i<mainThreadObject.processCollection.size()+1; i++) {
             fputs("\033[A\033[2K", stdout);
+            //cout << "\033[2J\033[1;1H";
         }
         rewind(stdout);*/
         sleep(1);
