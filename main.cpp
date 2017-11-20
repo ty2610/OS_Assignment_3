@@ -716,7 +716,7 @@ void* displayOutput(void* obj){
     printf("+--------+----------+------------+------+-----------+-----------+----------+-------------+\n");
 
     //writes the line to the terminal
-    /*while (!mainThreadObject.done) {
+    while (!mainThreadObject.done) {
         for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
             Process process = mainThreadObject.processCollection.at(i);
             printf("\r| %6d | %8d | %10s | %4d | %6.3f | %6.3f | %5.3f | %8.3f |\n", process.PID, process.priority,
@@ -725,8 +725,12 @@ void* displayOutput(void* obj){
         }
 
         //erase the lines from the terminal
-        cout << "\033[2J\033[1;1H";
+        //cout << "\033[2J\033[1;1H";
+        /*for (int i=0; i<mainThreadObject.processCollection.size()+1; i++) {
+            fputs("\033[A\033[2K", stdout);
+        }
+        rewind(stdout);*/
         sleep(1);
-    }*/
+    }
     //MUST DISPLAY FINAL OUTPUT HERE
 }
