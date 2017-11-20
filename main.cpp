@@ -28,6 +28,7 @@ struct Process {
     double waitTime;
     int cpuBursts;
     double restartTime;
+    //double collecti
 };
 
 struct CommandInput {
@@ -63,7 +64,6 @@ void takeCommand(int argc, char *argv[]);
 vector<Process> createProcesses();
 void* executeRoundRobin(void* obj);
 void* executeFirstComeFirstServe(void* obj);
-void sortFirstComeFirstServe();
 void* executeShortestJobFirst(void* obj);
 void sortShortestJobFirst();
 void insertShortestJobFirst(int index);
@@ -89,12 +89,9 @@ int main(int argc, char *argv[]) {
 
     //Create main thread
     pthread_t mainThread;
-    pthread_t outputThread;
     pthread_create(&mainThread, NULL, &mainThreadProcess, NULL);
-    pthread_create(&outputThread, NULL, &displayOutput, NULL);
 
     pthread_join(mainThread, NULL);
-    pthread_join(outputThread, NULL);
 
     return 0;
 }
@@ -262,6 +259,8 @@ void* mainThreadProcess(void* obj) {
     vector<Process> processCollection = createProcesses();
     mainThreadObject.processCollection = processCollection;
     mainThreadObject.done = false;
+    pthread_t outputThread;
+    pthread_create(&outputThread, NULL, &displayOutput, NULL);
     //Create core threads
     pthread_t threads[commandInput.cores];
     Core *core = new Core[commandInput.cores];
@@ -353,8 +352,6 @@ void* executeFirstComeFirstServe(void* obj){
     int lowest = 0;
     int place = 0;
 
-    sortFirstComeFirstServe();
-
     while (!mainThreadObject.done) {
         if (readyProcess()) {
             //lock must start HERE
@@ -405,26 +402,6 @@ void* executeFirstComeFirstServe(void* obj){
             mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
             //Context switch
             sleep(commandInput.contextSwitch / 1000);
-        }
-    }
-}
-
-/**
- * Sort by startTime
- */
-void sortFirstComeFirstServe() {
-    vector<Process> processCollection = mainThreadObject.processCollection;
-    int n = processCollection.size();
-    int temp = 0;
-    for(int i=0; i < n; i++){
-        for(int j=1; j < (n-i); j++){
-            if(processCollection.at(j-1).startTime > processCollection.at(j).startTime){
-                //swap elements
-                temp = processCollection.at(j-1).startTime;
-                processCollection.at(j-1).startTime = processCollection.at(j).startTime;
-                processCollection.at(j).startTime = temp;
-            }
-
         }
     }
 }
@@ -742,4 +719,5 @@ void* displayOutput(void* obj){
         rewind(stdout);
         sleep(1/2);
     }
+    //MUST DISPLAY FINAL OUTPUT HERE
 }
