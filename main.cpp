@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
-#include <sys/time.h>
 #include <unistd.h>
 #include <mutex>
 #include <random>
@@ -17,9 +16,9 @@ struct Process {
     int priority;
     string state;
     int core;
-    int turnTime;
-    int cpuTime;
-    int remainTime;
+    double turnTime;
+    double cpuTime;
+    double remainTime;
     int ioBursts;
     vector<double> ioBurstTimes;
     vector<double> cpuburstTimes;
@@ -96,18 +95,6 @@ int main(int argc, char *argv[]) {
 
     pthread_join(mainThread, NULL);
     pthread_join(outputThread, NULL);
-    //THE OUTPUT SHOULD BE PUT IN IT'S OWN METHOD
-    cout << "| PID | Priority | State | Core | Turn Time | Wait Time | CPU Time | Remain Time |" << endl;
-    cout << "+-----+----------+-------+------+-----------+-----------+----------+-------------+" << endl;
-    while (!mainThreadObject.done) {
-        for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
-            Process process = mainThreadObject.processCollection.at(i);
-            cout << "| " + to_string(process.PID) + "   | " + to_string(process.priority) + "        | " + process.state +
-                    " | " + to_string(process.core) + "    | " + to_string(process.turnTime) + "         | " +
-                    to_string(process.waitTime) + "         | " + to_string(process.cpuTime) + "        | " +
-                    to_string(process.remainTime) + "           |" << endl;
-        }
-    }
 
     return 0;
 }
@@ -238,7 +225,7 @@ vector<Process> createProcesses() {
     srand( time( NULL ) );
     for(int i=0; i<commandInput.processors; i++){
         Process tempProcess;
-        tempProcess.PID = 1024 +i;
+        tempProcess.PID = 1024 + i;
         if(i<=firstProcesses){
             tempProcess.state = "Ready";
             tempProcess.startTime = 0;
@@ -447,8 +434,6 @@ void* executeShortestJobFirst(void* obj){
     int shortest = 0;
     int place = 0;
 
-    sortShortestJobFirst();
-
     while (!mainThreadObject.done) {
         if (readyProcess()) {
             //lock must start HERE
@@ -548,8 +533,6 @@ void* executePreemptivePriority(void* obj) {
     //Process currProcess;
     int lowestPriority = 0;
     int place = 0;
-
-    sortPreemptivePriority();
 
     while (!mainThreadObject.done) {
         if (readyProcess()) {
@@ -747,7 +730,7 @@ void* displayOutput(void* obj){
     while (!mainThreadObject.done) {
         for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
             Process process = mainThreadObject.processCollection.at(i);
-            printf("| %6d | %8d | %10s | %4d | %9.3f | %9.3f | %8.3f | %11.3f |\n", process.PID, process.priority,
+            printf("| %6d | %8d | %10s | %4d | %6.3f | %6.3f | %5.3f | %8.3f |\n", process.PID, process.priority,
                    process.state, process.core, process.turnTime, process.waitTime, process.cpuTime,
                    process.remainTime);
         }
@@ -757,5 +740,6 @@ void* displayOutput(void* obj){
             fputs("\033[A\033[2K", stdout);
         }
         rewind(stdout);
+        sleep(2);
     }
 }
