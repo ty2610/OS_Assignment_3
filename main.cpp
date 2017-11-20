@@ -740,6 +740,6 @@ void* displayOutput(void* obj){
             fputs("\033[A\033[2K", stdout);
         }
         rewind(stdout);
-        sleep(2);
+        sleep(1/2);
     }
 }
