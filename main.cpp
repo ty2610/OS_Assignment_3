@@ -722,11 +722,8 @@ void* displayOutput(void* obj){
         }
 
         //erase the lines from the terminal
-        for (int j = 0; j < mainThreadObject.processCollection.size(); j++) {
-            fputs("\033[A\033[2K", stdout);
-        }
-        rewind(stdout);
-        sleep(1/2);
+        cout << "\033[2J\033[1;1H";
+        sleep(1);
     }
     //MUST DISPLAY FINAL OUTPUT HERE
 }
