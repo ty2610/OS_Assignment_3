@@ -7,7 +7,7 @@
 #include <random>
 
 //This is a CPP that will be compiled under c++ standard 11
-//compilable with g++ -o main main.cpp -std=c++11
+//compilable with g++ -o main main.cpp -std=c++11 -lpthread
 
 using namespace std;
 
@@ -248,6 +248,7 @@ vector<Process> createProcesses() {
             //https://stackoverflow.com/questions/25649495/how-to-insert-element-at-beginning-of-vector
             //used this to learn how to push to the back of a vector (just switched start() with end())
             temp = (rand() % 5001) + 1000;
+            //temp = 1000;
             tempProcess.cpuburstTimes.insert(tempProcess.cpuburstTimes.end(),temp);
             tempProcess.cpuTime += temp;
         }
@@ -453,7 +454,7 @@ void* executeFirstComeFirstServe(void* obj){
                 mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
                 mainThreadObject.processCollection.at(place).state = "Terminated";
                 //cout << "retiring process " << place << endl;
-                break;
+                continue;
             }
             //mainThreadObject.applicationStart = 1000.0 * clock() / CLOCKS_PER_SEC;
             //mainThreadObject.processCollection.at(place).startTime = now() + mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot];
