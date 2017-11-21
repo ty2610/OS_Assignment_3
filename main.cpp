@@ -385,7 +385,7 @@ void* executeRoundRobin(void* obj) {
                 mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
                 mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
                 //cout << "retiring process " << mainThreadObject.location << endl;
-                break;
+                continue;
             }
             mtx.lock();
             if(full){
