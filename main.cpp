@@ -735,6 +735,7 @@ void* displayOutput(void* obj){
         if(hasRun) {
             for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
                 fputs("\033[A\033[2K", stdout);
+                rewind(stdout);
                 //cout << "\033[2J\033[1;1H";
             }
         }
@@ -765,14 +766,12 @@ void* displayOutput(void* obj){
             } else {
                 onCore = to_string(process.core);
             }
-            printf("| %6d | %8d | %10s | %8s | %6.3f | %6.3f | %5.3f | %8.3f |\n", process.PID, process.priority,
+            printf("| %6d | %8d | %10s | %4s | %6.3f | %6.3f | %5.3f | %8.3f |\n", process.PID, process.priority,
                    process.state.c_str(), onCore.c_str(), elapsedTime, process.waitTime, timeOneCpu,
                    cpuRemainTime);
             hasRun = true;
         }
         mtx.unlock();
-        //erase the lines from the terminal
-        rewind(stdout);
         sleep(1);
     }
 
