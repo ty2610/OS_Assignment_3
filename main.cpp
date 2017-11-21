@@ -674,6 +674,7 @@ void* processActivator(void* obj){
         }
         //cout << count << endl;
         if(count==mainThreadObject.processCollection.size()) {
+            sleep(.5);
             mainThreadObject.done = true;
         }
     }
