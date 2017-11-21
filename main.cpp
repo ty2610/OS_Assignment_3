@@ -247,8 +247,8 @@ vector<Process> createProcesses() {
         for(int j=0; j<tempProcess.cpuBursts; j++) {
             //https://stackoverflow.com/questions/25649495/how-to-insert-element-at-beginning-of-vector
             //used this to learn how to push to the back of a vector (just switched start() with end())
-            temp = (rand() % 5001) + 1000;
-            //temp = 1000;
+            //temp = (rand() % 5001) + 1000;
+            temp = 1000;
             tempProcess.cpuburstTimes.insert(tempProcess.cpuburstTimes.end(),temp);
             tempProcess.cpuTime += temp;
         }
@@ -370,6 +370,7 @@ void* executeRoundRobin(void* obj) {
             if(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] > commandInput.timeSlice) {
                 mainThreadObject.processCollection.at(place).cpuBurstWaitTime = mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] - commandInput.timeSlice;
                 mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] = mainThreadObject.processCollection.at(place).cpuBurstWaitTime;
+                //sleep is ok to use with decimals, c++ 11 handles it
                 sleep(commandInput.timeSlice/1000);
                 full = false;
             } else {
@@ -380,7 +381,7 @@ void* executeRoundRobin(void* obj) {
                 full = true;
             }
 
-            if (mainThreadObject.processCollection.at(place).cpuBurstSpot == mainThreadObject.processCollection.at(place).cpuBursts) {
+            if (mainThreadObject.processCollection.at(place).cpuBurstSpot >= mainThreadObject.processCollection.at(place).cpuBursts) {
                 mainThreadObject.processCollection.at(place).state = "Terminated";
                 mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
                 mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
@@ -449,7 +450,7 @@ void* executeFirstComeFirstServe(void* obj){
             //LET GO OF KEY
             sleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] / 1000);
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
-            if (mainThreadObject.processCollection.at(place).cpuBurstSpot == mainThreadObject.processCollection.at(place).cpuBursts) {
+            if (mainThreadObject.processCollection.at(place).cpuBurstSpot >= mainThreadObject.processCollection.at(place).cpuBursts) {
                 mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
                 mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
                 mainThreadObject.processCollection.at(place).state = "Terminated";
@@ -512,7 +513,7 @@ void* executeShortestJobFirst(void* obj) {
                 mainThreadObject.processCollection.at(place).cpuTimeLeft = 0;
             }
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
-            if (mainThreadObject.processCollection.at(place).cpuBurstSpot ==
+            if (mainThreadObject.processCollection.at(place).cpuBurstSpot >=
                 mainThreadObject.processCollection.at(place).cpuBursts) {
                 mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
                 mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
@@ -580,7 +581,7 @@ void* executePreemptivePriority(void* obj) {
             mtx.lock();
             if(mainThreadObject.processCollection.at(place).kickedOff == false) {
                 mainThreadObject.processCollection.at(place).cpuBurstSpot++;
-                if (mainThreadObject.processCollection.at(place).cpuBurstSpot ==
+                if (mainThreadObject.processCollection.at(place).cpuBurstSpot >=
                     mainThreadObject.processCollection.at(place).cpuBursts) {
                     mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
                     mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
@@ -608,14 +609,17 @@ void* executePreemptivePriority(void* obj) {
 
 void insertPreemptivePriority(int index) {
     //Loop executing items and check if they should be replaced
-    int lowestPriority;
-    int place;
+    int lowestPriority =-1;
+    int place =-1;
     for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
         if (mainThreadObject.processCollection.at(i).state == "Executing") {
             lowestPriority = mainThreadObject.processCollection.at(i).priority;
             place = i;
             break;
         }
+    }
+    if(place == -1 || lowestPriority == -1) {
+        return;
     }
     for (int i = 0; i < mainThreadObject.processCollection.size(); i++) {
         if (mainThreadObject.processCollection.at(i).state == "Executing") {
@@ -674,7 +678,7 @@ void* processActivator(void* obj){
         }
         //cout << count << endl;
         if(count==mainThreadObject.processCollection.size()) {
-            sleep(.5);
+            sleep(.75);
             mainThreadObject.done = true;
         }
     }
@@ -738,7 +742,6 @@ void* displayOutput(void* obj){
             for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
                 fputs("\033[A\033[2K", stdout);
                 rewind(stdout);
-                //cout << "\033[2J\033[1;1H";
             }
         }
         mtx.lock();
