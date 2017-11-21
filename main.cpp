@@ -652,7 +652,6 @@ void* processActivator(void* obj){
             mtx.lock();
             if ((mainThreadObject.processCollection.at(i).state == "IO" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).restartTime) || (mainThreadObject.processCollection.at(i).state == "Not Created" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).startTime)) {
                 //MUST ADD LOCK HERE TO
-
                 if (mainThreadObject.processCollection.at(i).state == "IO") {
                     //cout << i << " process is done with IO" << endl;
                 } else {
