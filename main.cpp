@@ -729,8 +729,8 @@ void executeProcess(int timeToWait, double place) {
 
 void* displayOutput(void* obj){
 
-    printf("| %6s | %8s | %11s | %4s | %9s | %9s | %8s | %11s |\n", "PID", "Priority", "State", "Core", "Turn Time", "Wait Time", "CPU Time", "Remain Time");
-    printf("+--------+----------+------------+------+-----------+-----------+----------+-------------+\n");
+    printf("| %6s | %8s | %11s | %4s | %11s | %11s | %11s | %11s |\n", "PID", "Priority", "State", "Core", "Turn Time", "Wait Time", "CPU Time", "Remain Time");
+    printf("+--------+----------+------------+------+-------------+-------------+-------------+-------------+\n");
     bool hasRun = false;
     //writes the line to the terminal
     while (!mainThreadObject.done) {
@@ -771,7 +771,7 @@ void* displayOutput(void* obj){
             } else {
                 onCore = to_string(process.core);
             }
-            printf("| %6d | %8d | %11s | %4s | %9.3f | %9.3f | %8.3f | %11.3f |\n", process.PID, process.priority,
+            printf("| %6d | %8d | %11s | %4s | %11.3f | %11.3f | %11.3f | %11.3f |\n", process.PID, process.priority,
                    process.state.c_str(), onCore.c_str(), elapsedTime, process.waitTime, timeOneCpu,
                    cpuRemainTime);
             hasRun = true;
