@@ -763,8 +763,8 @@ void executeProcess(int timeToWait, double place) {
 
 void* displayOutput(void* obj){
 
-    printf("| %6s | %8s | %11s | %4s | %11s | %11s | %11s | %11s |\n", "PID", "Priority", "State", "Core", "Turn Time", "Wait Time", "CPU Time", "Remain Time");
-    printf("+--------+----------+-------------+------+-------------+-------------+-------------+-------------+\n");
+    printf("| %6s | %8s | %11s | %4s | %14s | %14s | %14s | %16s |\n", "PID", "Priority", "State", "Core", "Turn Time (ms)", "Wait Time (ms)", "CPU Time (ms)", "Remain Time (ms)");
+    printf("+--------+----------+-------------+------+----------------+----------------+----------------+------------------+\n");
     bool hasRun = false;
     //writes the line to the terminal
     while (!mainThreadObject.done) {
@@ -810,7 +810,7 @@ void* displayOutput(void* obj){
             } else {
                 onCore = to_string(process.core);
             }
-            printf("| %6d | %8d | %11s | %4s | %11.3f | %11.3f | %11.3f | %11.3f |\n", process.PID, process.priority,
+            printf("| %6d | %8d | %11s | %4s | %14.3f | %14.3f | %14.3f | %16.3f |\n", process.PID, process.priority,
                    process.state.c_str(), onCore.c_str(), elapsedTime, process.waitTime, timeOneCpu,
                    cpuRemainTime);
             hasRun = true;
@@ -820,28 +820,29 @@ void* displayOutput(void* obj){
     }
 
 
-    double turnAround = 0;
-    for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
-        turnAround += mainThreadObject.processCollection.at(i).terminatedTime;
-    }
-    turnAround = turnAround / mainThreadObject.processCollection.size();
-    cout << "Average turnaround time: " << (turnAround/1000) << endl;
     double totalCPU = 0;
     for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
         for(int j=0; j<mainThreadObject.processCollection.at(i).cpuBursts; j++){
             totalCPU += mainThreadObject.processCollection.at(i).cpuburstTimes[j];
         }
     }
+    cout << "Average CPU utilization: " << (((totalCPU/1000) / commandInput.cores) * (chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count()/1000)) <<  " ms" << endl;
 
-    cout << "Average CPU utilization: " << (((totalCPU/1000) / commandInput.cores) * (chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count()/1000)) << endl;
+    cout << "Average throughput for first 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer/1000)) <<  " ms" << endl;
+    cout << "Average throughput for second 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / ((mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer)/1000)) <<  " ms" << endl;
+    cout << "Overall throughput average: " << ((mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer/1000)) <<  " ms" << endl;
 
-    cout << "Average throughput for first 50% of processes finished: " << (floor(mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer/1000)) << endl;
-    cout << "Average throughput for second 50% of processes finished: " << (floor(mainThreadObject.processCollection.size() / 2) / ((mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer)/1000)) << endl;
-    cout << "Overall throughput average: " << ((mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer/1000)) << endl;
+    double turnAround = 0;
+    for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
+        turnAround += mainThreadObject.processCollection.at(i).terminatedTime;
+    }
+    turnAround = turnAround / mainThreadObject.processCollection.size();
+    cout << "Average turnaround time: " << (turnAround/1000) << " ms" << endl;
+
     double totalWaitTime = 0;
     for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
         totalWaitTime += mainThreadObject.processCollection.at(i).waitTime;
     }
-    cout << "Average waiting time: " << ((totalWaitTime/1000) / mainThreadObject.processCollection.size()) << endl;
+    cout << "Average waiting time: " << ((totalWaitTime/1000) / mainThreadObject.processCollection.size()) <<  " ms" << endl;
 
 }
