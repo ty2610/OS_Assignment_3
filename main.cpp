@@ -276,6 +276,7 @@ vector<Process> createProcesses() {
         tempProcess.robinLocation = i;
         tempProcess.turnTime = 0;
         tempProcess.core = 4;
+        tempProcess.waitTime = 0;
         processCollection.insert(processCollection.end(),tempProcess);
     }
     return processCollection;
@@ -368,10 +369,9 @@ void* executeRoundRobin(void* obj) {
                          lowest = mainThreadObject.processCollection.at(i).robinLocation;
                          place = i;
                     }
-
                 }
             }
-
+            mainThreadObject.processCollection.at(place).waitTime += chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() - mainThreadObject.processCollection.at(place).waitStart;
             //cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
             mainThreadObject.processCollection.at(place).core = core->id;
@@ -450,6 +450,7 @@ void* executeFirstComeFirstServe(void* obj){
                 }
             }
 
+            mainThreadObject.processCollection.at(place).waitTime += chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() - mainThreadObject.processCollection.at(place).waitStart;
             //currProcess = mainThreadObject.processCollection.at(place);
             //cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
@@ -506,6 +507,8 @@ void* executeShortestJobFirst(void* obj) {
 
                 }
             }
+
+            mainThreadObject.processCollection.at(place).waitTime += chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() - mainThreadObject.processCollection.at(place).waitStart;
             //currProcess = mainThreadObject.processCollection.at(place);
             //cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
@@ -575,6 +578,8 @@ void* executePreemptivePriority(void* obj) {
 
                 }
             }
+
+            mainThreadObject.processCollection.at(place).waitTime += chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() - mainThreadObject.processCollection.at(place).waitStart;
             //currProcess = mainThreadObject.processCollection.at(place);
             //cout << "Executing Process " << place << endl;
             mainThreadObject.processCollection.at(place).state = "Executing";
@@ -611,6 +616,8 @@ void* executePreemptivePriority(void* obj) {
                 //cout << "putting process " << place << " in IO" << endl;
             } else {
                 mainThreadObject.processCollection.at(place).kickedOff = false;
+                mainThreadObject.processCollection.at(place).state = "Ready";
+                mainThreadObject.processCollection.at(place).waitStart = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count();
             }
             mtx.unlock();
             usleep(commandInput.contextSwitch*1000);
@@ -681,7 +688,7 @@ void* processActivator(void* obj){
                 }
 
                 mainThreadObject.processCollection.at(i).state = "Ready";
-
+                mainThreadObject.processCollection.at(i).waitStart = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count();
             }
             mtx.unlock();
             if (mainThreadObject.processCollection.at(i).state == "Terminated") {
@@ -745,17 +752,19 @@ void executeProcess(int timeToWait, double place) {
             return;
         }
     }
-    double timeExecuted = ((1000.0 * clock() / CLOCKS_PER_SEC) - currTime);
+    mtx.lock();
+    double timeExecuted = ((chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count()) - currTime);
     mainThreadObject.processCollection.at(place).kickedOff = true;
     mainThreadObject.processCollection.at(place).cpuRemainingBurstTime =
             (mainThreadObject.processCollection.at(place).cpuburstTimes.at(mainThreadObject.processCollection.at(place).cpuBurstSpot)) - timeExecuted;
     mainThreadObject.processCollection.at(place).cpuBurstFinished = false;
+    mtx.unlock();
 }
 
 void* displayOutput(void* obj){
 
     printf("| %6s | %8s | %11s | %4s | %11s | %11s | %11s | %11s |\n", "PID", "Priority", "State", "Core", "Turn Time", "Wait Time", "CPU Time", "Remain Time");
-    printf("+--------+----------+------------+------+-------------+-------------+-------------+-------------+\n");
+    printf("+--------+----------+-------------+------+-------------+-------------+-------------+-------------+\n");
     bool hasRun = false;
     //writes the line to the terminal
     while (!mainThreadObject.done) {
@@ -816,17 +825,23 @@ void* displayOutput(void* obj){
         turnAround += mainThreadObject.processCollection.at(i).terminatedTime;
     }
     turnAround = turnAround / mainThreadObject.processCollection.size();
-    cout << "Average turnaround time: " << turnAround << endl;
+    cout << "Average turnaround time: " << (turnAround/1000) << endl;
     double totalCPU = 0;
     for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
         for(int j=0; j<mainThreadObject.processCollection.at(i).cpuBursts; j++){
             totalCPU += mainThreadObject.processCollection.at(i).cpuburstTimes[j];
         }
     }
-    cout << "Average CPU utilization: " << (totalCPU / commandInput.cores) * chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() << endl;
 
-    cout << "Average for first 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer)) << endl;
-    cout << "Average for second 50% of processes finished: " << (mainThreadObject.processCollection.size() / 2) / (mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer) << endl;
-    cout << "Overall average: " << (mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer) << endl;
+    cout << "Average CPU utilization: " << (((totalCPU/1000) / commandInput.cores) * (chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count()/1000)) << endl;
+
+    cout << "Average throughput for first 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer/1000)) << endl;
+    cout << "Average throughput for second 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / ((mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer)/1000)) << endl;
+    cout << "Overall throughput average: " << ((mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer/1000)) << endl;
+    double totalWaitTime = 0;
+    for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
+        totalWaitTime += mainThreadObject.processCollection.at(i).waitTime;
+    }
+    cout << "Average waiting time: " << ((totalWaitTime/1000) / mainThreadObject.processCollection.size()) << endl;
 
 }
