@@ -25,6 +25,8 @@ struct Process {
     vector<double> cpuburstTimes;
     int ioBurstSpot;
     int cpuBurstSpot;
+    bool cpuBurstFinished;
+    double cpuRemainingBurstTime;
     double startTime;
     double waitTime;
     double waitStart;
@@ -579,9 +581,15 @@ void* executePreemptivePriority(void* obj) {
             mainThreadObject.processCollection.at(place).core = core->id;
             mtx.unlock();
             //LET GO OF KEY
-            executeProcess(
-                    mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
-                            place).cpuBurstSpot], place);
+            Process tempProcess = mainThreadObject.processCollection.at(place);
+            double timeToPass;
+            if (mainThreadObject.processCollection.at(place).cpuBurstFinished) {
+                timeToPass = mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
+                        place).cpuBurstSpot];
+            } else {
+                timeToPass = mainThreadObject.processCollection.at(place).cpuRemainingBurstTime;
+            }
+            executeProcess(timeToPass, place);
             mtx.lock();
             if(mainThreadObject.processCollection.at(place).kickedOff == false) {
                 mainThreadObject.processCollection.at(place).cpuBurstSpot++;
@@ -732,10 +740,16 @@ void executeProcess(int timeToWait, double place) {
     double endTime = currTime + timeToWait;
     while (mainThreadObject.processCollection.at(place).state == "Executing") {
         if (endTime <= chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count()) {
+            mainThreadObject.processCollection.at(place).cpuRemainingBurstTime = 0;
+            mainThreadObject.processCollection.at(place).cpuBurstFinished = true;
             return;
         }
     }
+    double timeExecuted = ((1000.0 * clock() / CLOCKS_PER_SEC) - currTime);
     mainThreadObject.processCollection.at(place).kickedOff = true;
+    mainThreadObject.processCollection.at(place).cpuRemainingBurstTime =
+            (mainThreadObject.processCollection.at(place).cpuburstTimes.at(mainThreadObject.processCollection.at(place).cpuBurstSpot)) - timeExecuted;
+    mainThreadObject.processCollection.at(place).cpuBurstFinished = false;
 }
 
 void* displayOutput(void* obj){
@@ -763,7 +777,12 @@ void* displayOutput(void* obj){
             elapsedTime = 0;
             onCore = "0";
             for(int j=0; j<process.cpuBurstSpot; j++) {
-                timeOneCpu += process.cpuburstTimes[j];
+                //If we're on the most recent and there's a partial time, add it in
+                if ((process.cpuBurstSpot == j) && (!process.cpuBurstFinished)) {
+                    timeOneCpu += (process.cpuburstTimes.at(j) - process.cpuRemainingBurstTime);
+                } else {
+                    timeOneCpu += process.cpuburstTimes[j];
+                }
             }
             cpuRemainTime = process.cpuTime - timeOneCpu;
             if(cpuRemainTime<0){
