@@ -43,7 +43,7 @@ struct CommandInput {
     //1-4
     int cores;
     //1-24
-    int processors;
+    double processors;
     //0-3
     int algorithm;
     //100-1000
@@ -232,12 +232,15 @@ void takeCommand(int argc, char *argv[]) {
 
 vector<Process> createProcesses() {
     int firstProcesses = floor(commandInput.processors/3);
+    if(firstProcesses==0) {
+        firstProcesses = 1;
+    }
     vector<Process> processCollection;
     srand( time( NULL ) );
     for(int i=0; i<commandInput.processors; i++){
         Process tempProcess;
         tempProcess.PID = 1024 + i;
-        if(i<=firstProcesses){
+        if(i<firstProcesses){
             tempProcess.state = "Ready";
             tempProcess.startTime = 0;
         } else {
@@ -272,7 +275,7 @@ vector<Process> createProcesses() {
         tempProcess.cpuBurstSpot = 0;
         tempProcess.ioBurstSpot = 0;
         tempProcess.kickedOff = false;
-        tempProcess.cpuBurstWaitTime = 0;
+        tempProcess.cpuBurstWaitTime = tempProcess.cpuburstTimes.at(0);
         tempProcess.robinLocation = i;
         tempProcess.turnTime = 0;
         tempProcess.core = 4;
@@ -377,16 +380,14 @@ void* executeRoundRobin(void* obj) {
             mainThreadObject.processCollection.at(place).core = core->id;
             mtx.unlock();
             bool full;
-            if(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] > commandInput.timeSlice) {
-                mainThreadObject.processCollection.at(place).cpuBurstWaitTime = mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] - commandInput.timeSlice;
-                mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] = mainThreadObject.processCollection.at(place).cpuBurstWaitTime;
+            if(mainThreadObject.processCollection.at(place).cpuBurstWaitTime > commandInput.timeSlice) {
+                mainThreadObject.processCollection.at(place).cpuBurstWaitTime = mainThreadObject.processCollection.at(place).cpuBurstWaitTime - commandInput.timeSlice;
                 usleep(commandInput.timeSlice*1000);
                 full = false;
             } else {
-                mainThreadObject.processCollection.at(place).cpuBurstWaitTime = 0;
-                usleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
-                        place).cpuBurstSpot]*1000);
+                usleep(mainThreadObject.processCollection.at(place).cpuBurstWaitTime*1000);
                 mainThreadObject.processCollection.at(place).cpuBurstSpot++;
+                mainThreadObject.processCollection.at(place).cpuBurstWaitTime = mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot];
                 full = true;
             }
 
@@ -405,6 +406,7 @@ void* executeRoundRobin(void* obj) {
                 mainThreadObject.processCollection.at(place).restartTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
             } else {
                 mainThreadObject.processCollection.at(place).robinLocation = findHighestRobinLocation() + 1;
+                mainThreadObject.processCollection.at(place).waitStart = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count();
                 mainThreadObject.processCollection.at(place).state = "Ready";
             }
             mtx.unlock();
@@ -785,10 +787,20 @@ void* displayOutput(void* obj){
             cpuRemainTime = 0;
             elapsedTime = 0;
             onCore = "0";
+            if(process.cpuBurstSpot == 0 && commandInput.algorithm == 0) {
+                timeOneCpu += process.cpuburstTimes[0] - process.cpuBurstWaitTime;
+            }
             for(int j=0; j<process.cpuBurstSpot; j++) {
                 //If we're on the most recent and there's a partial time, add it in
-                if ((process.cpuBurstSpot == j) && (!process.cpuBurstFinished)) {
+                if ((process.cpuBurstSpot == j) && (!process.cpuBurstFinished) && (commandInput.algorithm == 3)) {
                     timeOneCpu += (process.cpuburstTimes.at(j) - process.cpuRemainingBurstTime);
+                } else if(j+1 < process.cpuBursts){
+                    if(process.cpuBurstSpot == j+1 && commandInput.algorithm == 0 && process.cpuBurstWaitTime<process.cpuburstTimes.at(j+1)){
+                        timeOneCpu += process.cpuburstTimes[j+1] - process.cpuBurstWaitTime;
+                        timeOneCpu += process.cpuburstTimes[j];
+                    } else {
+                        timeOneCpu += process.cpuburstTimes[j];
+                    }
                 } else {
                     timeOneCpu += process.cpuburstTimes[j];
                 }
@@ -826,23 +838,23 @@ void* displayOutput(void* obj){
             totalCPU += mainThreadObject.processCollection.at(i).cpuburstTimes[j];
         }
     }
-    cout << "Average CPU utilization: " << (((totalCPU/1000) / commandInput.cores) * (chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count()/1000)) <<  " ms" << endl;
+    cout << "Average CPU utilization: " << (((totalCPU/1000) / commandInput.cores) * (chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count()/1000)) <<  " s" << endl;
 
-    cout << "Average throughput for first 50% of processes finished: " << (floor(mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer/1000)) <<  " ms" << endl;
-    cout << "Average throughput for second 50% of processes finished: " << (floor(mainThreadObject.processCollection.size() / 2) / ((mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer)/1000)) <<  " ms" << endl;
-    cout << "Overall throughput average: " << ((mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer/1000)) <<  " ms" << endl;
+    cout << "Average throughput for first 50% of processes finished: " << (floor(mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer/1000)) <<  " s" << endl;
+    cout << "Average throughput for second 50% of processes finished: " << (floor(mainThreadObject.processCollection.size() / 2) / ((mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer)/1000)) <<  " s" << endl;
+    cout << "Overall throughput average: " << ((mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer/1000)) <<  " s" << endl;
 
     double turnAround = 0;
     for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
         turnAround += mainThreadObject.processCollection.at(i).terminatedTime;
     }
     turnAround = turnAround / mainThreadObject.processCollection.size();
-    cout << "Average turnaround time: " << (turnAround/1000) << " ms" << endl;
+    cout << "Average turnaround time: " << (turnAround/1000) << " s" << endl;
 
     double totalWaitTime = 0;
     for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
         totalWaitTime += mainThreadObject.processCollection.at(i).waitTime;
     }
-    cout << "Average waiting time: " << ((totalWaitTime/1000) / mainThreadObject.processCollection.size()) <<  " ms" << endl;
+    cout << "Average waiting time: " << ((totalWaitTime/1000) / mainThreadObject.processCollection.size()) <<  " s" << endl;
 
 }
