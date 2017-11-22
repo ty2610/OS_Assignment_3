@@ -685,7 +685,7 @@ void* processActivator(void* obj){
             }
         }
         if (!pastHalfway) {
-            if (count == (mainThreadObject.processCollection.size() / 2)) {
+            if (count == (floor(mainThreadObject.processCollection.size() / 2))) {
                 mainThreadObject.firstHalfThroughputTimer = 1000.0 * clock() / CLOCKS_PER_SEC;
                 pastHalfway = true;
             }
