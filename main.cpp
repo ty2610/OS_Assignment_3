@@ -27,6 +27,7 @@ struct Process {
     int cpuBurstSpot;
     double startTime;
     double waitTime;
+    double waitStart;
     int cpuBursts;
     double restartTime;
     double cpuTimeLeft;
@@ -87,6 +88,11 @@ int main(int argc, char *argv[]) {
     commandInput.algorithm = -1;
     commandInput.contextSwitch = 0;
     commandInput.timeSlice = 0;
+
+    /*chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    usleep(2000 * 1000);
+    chrono::steady_clock::time_point end= std::chrono::steady_clock::now();
+    cout << "Time difference = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << endl;*/
 
     takeCommand(argc,argv);
     //checks to see if there are arguments, and error checks
@@ -370,13 +376,12 @@ void* executeRoundRobin(void* obj) {
             if(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] > commandInput.timeSlice) {
                 mainThreadObject.processCollection.at(place).cpuBurstWaitTime = mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] - commandInput.timeSlice;
                 mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] = mainThreadObject.processCollection.at(place).cpuBurstWaitTime;
-                //sleep is ok to use with decimals, c++ 11 handles it
-                sleep(commandInput.timeSlice/1000);
+                usleep(commandInput.timeSlice*1000);
                 full = false;
             } else {
                 mainThreadObject.processCollection.at(place).cpuBurstWaitTime = 0;
-                sleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
-                        place).cpuBurstSpot] / 1000);
+                usleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
+                        place).cpuBurstSpot]*1000);
                 mainThreadObject.processCollection.at(place).cpuBurstSpot++;
                 full = true;
             }
@@ -401,7 +406,7 @@ void* executeRoundRobin(void* obj) {
             }
             mtx.unlock();
             //Context switch
-            sleep(commandInput.contextSwitch / 1000);
+            usleep(commandInput.contextSwitch*1000);
         }
     }
 }
@@ -448,7 +453,7 @@ void* executeFirstComeFirstServe(void* obj){
             mainThreadObject.processCollection.at(place).core = core->id;
             mtx.unlock();
             //LET GO OF KEY
-            sleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot] / 1000);
+            usleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot]*1000);
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot >= mainThreadObject.processCollection.at(place).cpuBursts) {
                 mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
@@ -469,7 +474,7 @@ void* executeFirstComeFirstServe(void* obj){
             mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
             mtx.unlock();
             //Context switch
-            sleep(commandInput.contextSwitch / 1000);
+            usleep(commandInput.contextSwitch*1000);
         }
     }
 }
@@ -505,8 +510,8 @@ void* executeShortestJobFirst(void* obj) {
             mainThreadObject.processCollection.at(place).core = core->id;
             mtx.unlock();
             //LET GO OF KEY
-            sleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
-                    place).cpuBurstSpot] / 1000);
+            usleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
+                    place).cpuBurstSpot]*1000);
             mainThreadObject.processCollection.at(place).cpuTimeLeft -= mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(
                     place).cpuBurstSpot];
             if(mainThreadObject.processCollection.at(place).cpuTimeLeft < 0){
@@ -534,7 +539,7 @@ void* executeShortestJobFirst(void* obj) {
 
             //cout << "putting process " << place << " in IO" << endl;
             mtx.unlock();
-            sleep(commandInput.contextSwitch/1000);
+            usleep(commandInput.contextSwitch*1000);
         }
     }
 }
@@ -602,7 +607,7 @@ void* executePreemptivePriority(void* obj) {
                 mainThreadObject.processCollection.at(place).kickedOff = false;
             }
             mtx.unlock();
-            sleep(commandInput.contextSwitch / 1000);
+            usleep(commandInput.contextSwitch*1000);
         }
     }
 }
@@ -649,7 +654,7 @@ void insertPreemptivePriority(int index) {
 void* processActivator(void* obj){
     int count = 0;
     while (!mainThreadObject.done) {
-        sleep(.25);
+        usleep(250*1000);
         count = 0;
         //cout << "HERE" << endl;
         for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
@@ -678,7 +683,7 @@ void* processActivator(void* obj){
         }
         //cout << count << endl;
         if(count==mainThreadObject.processCollection.size()) {
-            sleep(.75);
+            usleep(750*1000);
             mainThreadObject.done = true;
         }
     }
@@ -777,7 +782,7 @@ void* displayOutput(void* obj){
             hasRun = true;
         }
         mtx.unlock();
-        sleep(1);
+        usleep(1000*1000);
     }
 
 
