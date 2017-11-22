@@ -828,8 +828,8 @@ void* displayOutput(void* obj){
     }
     cout << "Average CPU utilization: " << (((totalCPU/1000) / commandInput.cores) * (chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count()/1000)) <<  " ms" << endl;
 
-    cout << "Average throughput for first 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer/1000)) <<  " ms" << endl;
-    cout << "Average throughput for second 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / ((mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer)/1000)) <<  " ms" << endl;
+    cout << "Average throughput for first 50% of processes finished: " << (floor(mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer/1000)) <<  " ms" << endl;
+    cout << "Average throughput for second 50% of processes finished: " << (floor(mainThreadObject.processCollection.size() / 2) / ((mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer)/1000)) <<  " ms" << endl;
     cout << "Overall throughput average: " << ((mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer/1000)) <<  " ms" << endl;
 
     double turnAround = 0;
