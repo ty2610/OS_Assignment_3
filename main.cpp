@@ -35,7 +35,6 @@ struct Process {
     double cpuBurstWaitTime;
     int robinLocation;
     double terminatedTime;
-    double terminatedTotal;
 };
 
 struct CommandInput {
@@ -55,7 +54,7 @@ struct CommandInput {
 struct MainThread {
     vector<Process> processCollection;
     bool done;
-    double applicationStart;
+    chrono::steady_clock::time_point applicationStart;
     int location;
     double firstHalfThroughputTimer;
     double endThroughputTimer;
@@ -255,8 +254,8 @@ vector<Process> createProcesses() {
         for(int j=0; j<tempProcess.cpuBursts; j++) {
             //https://stackoverflow.com/questions/25649495/how-to-insert-element-at-beginning-of-vector
             //used this to learn how to push to the back of a vector (just switched start() with end())
-            //temp = (rand() % 5001) + 1000;
-            temp = 1000;
+            temp = (rand() % 5001) + 1000;
+            //temp = 1000;
             tempProcess.cpuburstTimes.insert(tempProcess.cpuburstTimes.end(),temp);
             tempProcess.cpuTime += temp;
         }
@@ -264,6 +263,7 @@ vector<Process> createProcesses() {
         tempProcess.ioTime = 0;
         for(int j =0; j<tempProcess.ioBursts; j++) {
             temp = (rand() % 5001) + 1000;
+            //temp = 1000;
             tempProcess.ioBurstTimes.insert(tempProcess.ioBurstTimes.end(),temp);
             tempProcess.ioTime+=temp;
         }
@@ -282,7 +282,7 @@ vector<Process> createProcesses() {
 void* mainThreadProcess(void* obj) {
     //looked up some timing techniques at
     //en.cppreference.com/w/cpp/chrome/c/clock
-    mainThreadObject.applicationStart = 1000.0 * clock() / CLOCKS_PER_SEC;
+    mainThreadObject.applicationStart = chrono::steady_clock::now();
     mainThreadObject.location = 0;
     vector<Process> processCollection = createProcesses();
     mainThreadObject.processCollection = processCollection;
@@ -390,8 +390,7 @@ void* executeRoundRobin(void* obj) {
 
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot >= mainThreadObject.processCollection.at(place).cpuBursts) {
                 mainThreadObject.processCollection.at(place).state = "Terminated";
-                mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
-                mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
+                mainThreadObject.processCollection.at(place).terminatedTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() - mainThreadObject.processCollection.at(place).startTime;
                 //cout << "retiring process " << mainThreadObject.location << endl;
                 continue;
             }
@@ -401,7 +400,7 @@ void* executeRoundRobin(void* obj) {
                 mainThreadObject.processCollection.at(place).ioBurstSpot++;
                 //cout << "putting process " << place << " in IO" << endl;
                 //perform IO burst
-                mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
+                mainThreadObject.processCollection.at(place).restartTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
             } else {
                 mainThreadObject.processCollection.at(place).robinLocation = findHighestRobinLocation() + 1;
                 mainThreadObject.processCollection.at(place).state = "Ready";
@@ -458,8 +457,7 @@ void* executeFirstComeFirstServe(void* obj){
             usleep(mainThreadObject.processCollection.at(place).cpuburstTimes[mainThreadObject.processCollection.at(place).cpuBurstSpot]*1000);
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot >= mainThreadObject.processCollection.at(place).cpuBursts) {
-                mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
-                mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
+                mainThreadObject.processCollection.at(place).terminatedTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() - mainThreadObject.processCollection.at(place).startTime;
                 mainThreadObject.processCollection.at(place).state = "Terminated";
                 //cout << "retiring process " << place << endl;
                 continue;
@@ -473,7 +471,7 @@ void* executeFirstComeFirstServe(void* obj){
             //cout << "putting process " << place << " in IO" << endl;
 
             //perform IO burst
-            mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
+            mainThreadObject.processCollection.at(place).restartTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() + (mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot]);
             mtx.unlock();
             //Context switch
             usleep(commandInput.contextSwitch*1000);
@@ -522,8 +520,7 @@ void* executeShortestJobFirst(void* obj) {
             mainThreadObject.processCollection.at(place).cpuBurstSpot++;
             if (mainThreadObject.processCollection.at(place).cpuBurstSpot >=
                 mainThreadObject.processCollection.at(place).cpuBursts) {
-                mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
-                mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
+                mainThreadObject.processCollection.at(place).terminatedTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() - mainThreadObject.processCollection.at(place).startTime;
                 mainThreadObject.processCollection.at(place).state = "Terminated";
                 //cout << "retiring process " << place << endl;
                 continue;
@@ -532,7 +529,7 @@ void* executeShortestJobFirst(void* obj) {
             //mainThreadObject.processCollection.at(place).startTime = now() + mainThreadObject.processCollection.at(place).ioBurstTimes[mainThreadObject.processCollection.at(place).ioBurstSpot];
             mtx.lock();
 
-            mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) +
+            mainThreadObject.processCollection.at(place).restartTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() +
                                                                        (mainThreadObject.processCollection.at(
                                                                                place).ioBurstTimes[mainThreadObject.processCollection.at(
                                                                                place).ioBurstSpot]);
@@ -590,15 +587,14 @@ void* executePreemptivePriority(void* obj) {
                 mainThreadObject.processCollection.at(place).cpuBurstSpot++;
                 if (mainThreadObject.processCollection.at(place).cpuBurstSpot >=
                     mainThreadObject.processCollection.at(place).cpuBursts) {
-                    mainThreadObject.processCollection.at(place).terminatedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - mainThreadObject.processCollection.at(place).startTime;
-                    mainThreadObject.processCollection.at(place).terminatedTotal = (1000.0 * clock() / CLOCKS_PER_SEC);
+                    mainThreadObject.processCollection.at(place).terminatedTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() - mainThreadObject.processCollection.at(place).startTime;
                     mainThreadObject.processCollection.at(place).state = "Terminated";
                     //cout << "retiring process " << place << endl;
                     mtx.unlock();
                     continue;
                 }
 
-                mainThreadObject.processCollection.at(place).restartTime = (1000.0 * clock() / CLOCKS_PER_SEC) +
+                mainThreadObject.processCollection.at(place).restartTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() +
                                                                            (mainThreadObject.processCollection.at(
                                                                                    place).ioBurstTimes[mainThreadObject.processCollection.at(
                                                                                    place).ioBurstSpot]);
@@ -663,7 +659,7 @@ void* processActivator(void* obj){
         for (int i=0; i<mainThreadObject.processCollection.size(); i++) {
             //cout << processCollection->at(i).state << endl;
             mtx.lock();
-            if ((mainThreadObject.processCollection.at(i).state == "IO" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).restartTime) || (mainThreadObject.processCollection.at(i).state == "Not Created" && (1000.0 * clock() / CLOCKS_PER_SEC) >= mainThreadObject.processCollection.at(i).startTime)) {
+            if ((mainThreadObject.processCollection.at(i).state == "IO" && chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() >= mainThreadObject.processCollection.at(i).restartTime) || (mainThreadObject.processCollection.at(i).state == "Not Created" && chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() >= mainThreadObject.processCollection.at(i).startTime)) {
                 //MUST ADD LOCK HERE TO
                 if (mainThreadObject.processCollection.at(i).state == "IO") {
                     //cout << i << " process is done with IO" << endl;
@@ -686,7 +682,7 @@ void* processActivator(void* obj){
         }
         if (!pastHalfway) {
             if (count == (floor(mainThreadObject.processCollection.size() / 2))) {
-                mainThreadObject.firstHalfThroughputTimer = 1000.0 * clock() / CLOCKS_PER_SEC;
+                mainThreadObject.firstHalfThroughputTimer = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count();
                 pastHalfway = true;
             }
         }
@@ -694,7 +690,7 @@ void* processActivator(void* obj){
         if(count == mainThreadObject.processCollection.size()) {
             usleep(750*1000);
             mainThreadObject.done = true;
-            mainThreadObject.endThroughputTimer = 1000.0 * clock() / CLOCKS_PER_SEC;
+            mainThreadObject.endThroughputTimer = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count();
         }
     }
     /*
@@ -732,10 +728,10 @@ bool readyProcess() {
  * Remove if priority tells to do so
  */
 void executeProcess(int timeToWait, double place) {
-    double currTime = 1000.0 * clock() / CLOCKS_PER_SEC;
+    double currTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count();
     double endTime = currTime + timeToWait;
     while (mainThreadObject.processCollection.at(place).state == "Executing") {
-        if (endTime <= (1000.0 * clock() / CLOCKS_PER_SEC)) {
+        if (endTime <= chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count()) {
             return;
         }
     }
@@ -778,7 +774,7 @@ void* displayOutput(void* obj){
             } else if(process.state=="Not Created") {
                 elapsedTime = 0;
             } else {
-                elapsedTime = (1000.0 * clock() / CLOCKS_PER_SEC) - process.startTime;
+                elapsedTime = chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() - process.startTime;
             }
 
             if(process.state != "Executing") {
@@ -798,7 +794,7 @@ void* displayOutput(void* obj){
 
     double turnAround = 0;
     for(int i=0; i<mainThreadObject.processCollection.size(); i++) {
-        turnAround += mainThreadObject.processCollection.at(i).terminatedTotal;
+        turnAround += mainThreadObject.processCollection.at(i).terminatedTime;
     }
     turnAround = turnAround / mainThreadObject.processCollection.size();
     cout << "Average turnaround time: " << turnAround << endl;
@@ -808,10 +804,10 @@ void* displayOutput(void* obj){
             totalCPU += mainThreadObject.processCollection.at(i).cpuburstTimes[j];
         }
     }
-    cout << "Average CPU utilization: " << (totalCPU / commandInput.cores) * (1000.0 * clock() / CLOCKS_PER_SEC) << endl;
+    cout << "Average CPU utilization: " << (totalCPU / commandInput.cores) * chrono::duration_cast<std::chrono::milliseconds>(chrono::steady_clock::now() - mainThreadObject.applicationStart).count() << endl;
 
-    cout << "Average for first 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer - mainThreadObject.applicationStart)) << endl;
+    cout << "Average for first 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer)) << endl;
     cout << "Average for second 50% of processes finished: " << (mainThreadObject.processCollection.size() / 2) / (mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer) << endl;
-    cout << "Overall average: " << (mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer - mainThreadObject.applicationStart) << endl;
+    cout << "Overall average: " << (mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer) << endl;
 
 }
