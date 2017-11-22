@@ -57,6 +57,8 @@ struct MainThread {
     bool done;
     double applicationStart;
     int location;
+    double firstHalfThroughputTimer;
+    double endThroughputTimer;
 }mainThreadObject;
 
 struct Core {
@@ -653,6 +655,7 @@ void insertPreemptivePriority(int index) {
  */
 void* processActivator(void* obj){
     int count = 0;
+    bool pastHalfway = false;
     while (!mainThreadObject.done) {
         usleep(250*1000);
         count = 0;
@@ -681,10 +684,17 @@ void* processActivator(void* obj){
                 count++;
             }
         }
+        if (!pastHalfway) {
+            if (count == (mainThreadObject.processCollection.size() / 2)) {
+                mainThreadObject.firstHalfThroughputTimer = 1000.0 * clock() / CLOCKS_PER_SEC;
+                pastHalfway = true;
+            }
+        }
         //cout << count << endl;
-        if(count==mainThreadObject.processCollection.size()) {
+        if(count == mainThreadObject.processCollection.size()) {
             usleep(750*1000);
             mainThreadObject.done = true;
+            mainThreadObject.endThroughputTimer = 1000.0 * clock() / CLOCKS_PER_SEC;
         }
     }
     /*
@@ -799,4 +809,9 @@ void* displayOutput(void* obj){
         }
     }
     cout << "Average CPU utilization: " << (totalCPU / commandInput.cores) * (1000.0 * clock() / CLOCKS_PER_SEC) << endl;
+
+    cout << "Average for first 50% of processes finished: " << ((mainThreadObject.processCollection.size() / 2) / (mainThreadObject.firstHalfThroughputTimer - mainThreadObject.applicationStart)) << endl;
+    cout << "Average for second 50% of processes finished: " << (mainThreadObject.processCollection.size() / 2) / (mainThreadObject.endThroughputTimer - mainThreadObject.firstHalfThroughputTimer) << endl;
+    cout << "Overall average: " << (mainThreadObject.processCollection.size()) / (mainThreadObject.endThroughputTimer - mainThreadObject.applicationStart) << endl;
+
 }
